@@ -1,0 +1,59 @@
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /api
+
+spring:
+  config:
+    import:
+      - optional:file:.env[.properties]
+      - optional:file:../.env[.properties]
+  application:
+    name: insuramind-backend
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:${DATABASE_URL:jdbc:postgresql://localhost:5432/insuramind}}
+    username: ${SPRING_DATASOURCE_USERNAME:${POSTGRES_USER:insuramind}}
+    password: ${SPRING_DATASOURCE_PASSWORD:${POSTGRES_PASSWORD:insuramind}}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        default_schema: ${APP_DB_SCHEMA:insuramind}
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+  flyway:
+    enabled: true
+    create-schemas: true
+    default-schema: ${APP_DB_SCHEMA:insuramind}
+    schemas: ${APP_DB_SCHEMA:insuramind}
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 60MB
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+app:
+  jwt:
+    secret: ${APP_JWT_SECRET:change-this-to-a-long-random-secret-change-this-to-a-long-random-secret}
+    access-token-minutes: ${APP_JWT_ACCESS_MINUTES:60}
+  cors:
+    origins: ${APP_CORS_ORIGINS:http://localhost:3000}
+  internal-token: ${APP_INTERNAL_TOKEN:dev-internal-token-change-me}
+  ai:
+    base-url: ${APP_AI_BASE_URL:${AI_SERVICE_URL:http://localhost:8001}}
+  minio:
+    endpoint: ${APP_MINIO_ENDPOINT:${MINIO_ENDPOINT:http://localhost:9000}}
+    public-endpoint: ${APP_MINIO_PUBLIC_ENDPOINT:${MINIO_PUBLIC_ENDPOINT:http://localhost:9000}}
+    access-key: ${APP_MINIO_ACCESS_KEY:${MINIO_ACCESS_KEY:insuramind}}
+    secret-key: ${APP_MINIO_SECRET_KEY:${MINIO_SECRET_KEY:insuramind-secret}}
+    bucket: ${APP_MINIO_BUCKET:${MINIO_BUCKET:insuramind-documents}}
+  upload:
+    max-bytes: ${APP_UPLOAD_MAX_BYTES:52428800}
