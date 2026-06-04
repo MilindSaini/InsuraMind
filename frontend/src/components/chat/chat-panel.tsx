@@ -16,7 +16,15 @@ const suggestions = [
   "Summarize my coverage"
 ];
 
-export function ChatPanel({ documentId, disabled }: { documentId: string; disabled?: boolean }) {
+export function ChatPanel({
+  documentId,
+  disabled,
+  onAnswer
+}: {
+  documentId: string;
+  disabled?: boolean;
+  onAnswer?: (answer: ChatResponse) => void;
+}) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState("");
   const [lastAnswer, setLastAnswer] = useState<ChatResponse | null>(null);
@@ -25,6 +33,7 @@ export function ChatPanel({ documentId, disabled }: { documentId: string; disabl
     mutationFn: (question: string) => askDocument(documentId, question),
     onSuccess: (response) => {
       setLastAnswer(response);
+      onAnswer?.(response);
       setDraft("");
       queryClient.invalidateQueries({ queryKey: ["messages", documentId] });
     }

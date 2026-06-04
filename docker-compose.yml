@@ -50,10 +50,16 @@ services:
       APP_MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-insuramind}
       APP_MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-insuramind-secret}
       APP_MINIO_BUCKET: ${MINIO_BUCKET:-insuramind-documents}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      APP_QUERY_CACHE_TTL_HOURS: ${APP_QUERY_CACHE_TTL_HOURS:-24}
+      APP_QUERY_RATE_LIMIT_PER_MINUTE: ${APP_QUERY_RATE_LIMIT_PER_MINUTE:-20}
     depends_on:
       minio:
         condition: service_started
       qdrant:
+        condition: service_started
+      redis:
         condition: service_started
     ports:
       - "8080:8080"
@@ -73,10 +79,11 @@ services:
       QDRANT_URL: http://qdrant:6333
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-insuramind_chunks}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_FAST_MODEL: ${GEMINI_FAST_MODEL:-gemini-1.5-flash}
-      GEMINI_REASONING_MODEL: ${GEMINI_REASONING_MODEL:-gemini-1.5-pro}
+      GEMINI_FAST_MODEL: ${GEMINI_FAST_MODEL:-gemini-2.5-flash}
+      GEMINI_REASONING_MODEL: ${GEMINI_REASONING_MODEL:-gemini-2.5-pro}
+      GEMINI_VERIFIER_MODEL: ${GEMINI_VERIFIER_MODEL:-gemini-2.5-flash}
       EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-large-en-v1.5}
-      EMBEDDING_DIM: ${EMBEDDING_DIM:-384}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
     depends_on:
       backend:
         condition: service_started

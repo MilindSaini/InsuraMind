@@ -12,6 +12,7 @@ import com.insuramind.user.User;
 import com.insuramind.user.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -103,6 +104,16 @@ public class DocumentService {
     public SignedUrlResponse signedUrl(SecurityUser principal, UUID documentId) {
         InsuranceDocument document = getOwnedDocument(principal, documentId);
         return new SignedUrlResponse(storage.signedUrl(document.getObjectKey(), 900), 900);
+    }
+
+    public DocumentPreview preview(SecurityUser principal, UUID documentId) {
+        InsuranceDocument document = getOwnedDocument(principal, documentId);
+        return new DocumentPreview(
+                new InputStreamResource(storage.download(document.getObjectKey())),
+                document.getFileName(),
+                document.getFileType(),
+                document.getSizeBytes()
+        );
     }
 
     public InsightResponse insights(SecurityUser principal, UUID documentId) {
@@ -231,4 +242,11 @@ public class DocumentService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Could not read file");
         }
     }
+
+    public record DocumentPreview(
+            InputStreamResource resource,
+            String fileName,
+            String contentType,
+            long sizeBytes
+    ) {}
 }

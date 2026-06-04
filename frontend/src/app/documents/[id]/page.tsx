@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ArrowLeft, RefreshCw } from "lucide-react";
+import { useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
 import { ChatPanel } from "@/components/chat/chat-panel";
@@ -11,10 +12,12 @@ import { PdfViewer } from "@/components/document/pdf-viewer";
 import { InsightPanel } from "@/components/insights/insight-panel";
 import { Badge } from "@/components/ui/badge";
 import { getDocument, getInsights } from "@/services/api";
+import type { ChatResponse } from "@/types";
 
 export default function DocumentPage() {
   const params = useParams<{ id: string }>();
   const documentId = params.id;
+  const [lastAnswer, setLastAnswer] = useState<ChatResponse | null>(null);
   const document = useQuery({
     queryKey: ["document", documentId],
     queryFn: () => getDocument(documentId),
@@ -28,6 +31,13 @@ export default function DocumentPage() {
   });
 
   const ready = document.data?.status === "READY";
+  const documentHighlights = useMemo(() => {
+    const chunks = insights.data?.allChunks || [];
+    return chunks.filter((chunk) =>
+      chunk.riskLevel === "high" ||
+      ["exclusion", "waiting_period", "coverage"].includes(chunk.sectionType)
+    );
+  }, [insights.data?.allChunks]);
 
   return (
     <AuthGuard>
@@ -49,11 +59,15 @@ export default function DocumentPage() {
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_420px]">
           <section className="min-h-[680px]">
-            <PdfViewer documentId={documentId} />
+            <PdfViewer
+              documentId={documentId}
+              highlights={documentHighlights}
+              citations={lastAnswer?.citations || []}
+            />
           </section>
           <aside className="space-y-5">
             <InsightPanel insights={insights.data} />
-            <ChatPanel documentId={documentId} disabled={!ready} />
+            <ChatPanel documentId={documentId} disabled={!ready} onAnswer={setLastAnswer} />
           </aside>
         </div>
       </AppShell>

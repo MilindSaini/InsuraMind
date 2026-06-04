@@ -2,6 +2,7 @@ package com.insuramind.auth;
 
 import com.insuramind.auth.dto.AuthResponse;
 import com.insuramind.auth.dto.LoginRequest;
+import com.insuramind.auth.dto.RefreshTokenRequest;
 import com.insuramind.auth.dto.SignupRequest;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,5 +27,10 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    @PostMapping("/refresh")
+    public AuthResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return authService.refresh(request);
     }
 }

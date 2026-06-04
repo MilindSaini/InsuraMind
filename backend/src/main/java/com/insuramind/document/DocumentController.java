@@ -4,7 +4,11 @@ import com.insuramind.document.dto.DocumentResponse;
 import com.insuramind.document.dto.InsightResponse;
 import com.insuramind.document.dto.SignedUrlResponse;
 import com.insuramind.security.SecurityUser;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -44,6 +48,25 @@ public class DocumentController {
     @GetMapping("/{id}/file-url")
     public SignedUrlResponse fileUrl(@AuthenticationPrincipal SecurityUser principal, @PathVariable UUID id) {
         return documentService.signedUrl(principal, id);
+    }
+
+    @GetMapping("/{id}/preview")
+    public ResponseEntity<InputStreamResource> preview(@AuthenticationPrincipal SecurityUser principal, @PathVariable UUID id) {
+        DocumentService.DocumentPreview preview = documentService.preview(principal, id);
+        MediaType mediaType = MediaType.APPLICATION_PDF;
+        try {
+            mediaType = MediaType.parseMediaType(preview.contentType());
+        } catch (Exception ignored) {
+            // Default to PDF for browser preview.
+        }
+        return ResponseEntity.ok()
+                .contentType(mediaType)
+                .contentLength(preview.sizeBytes())
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                        .filename(preview.fileName())
+                        .build()
+                        .toString())
+                .body(preview.resource());
     }
 
     @GetMapping("/{id}/insights")

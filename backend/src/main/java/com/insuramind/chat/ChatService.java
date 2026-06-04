@@ -31,6 +31,8 @@ public class ChatService {
     private final UserRepository users;
     private final DocumentService documents;
     private final AiServiceClient aiServiceClient;
+    private final QueryCacheService queryCacheService;
+    private final RateLimitService rateLimitService;
     private final AuditService auditService;
     private final ObjectMapper objectMapper;
 
@@ -40,6 +42,8 @@ public class ChatService {
             UserRepository users,
             DocumentService documents,
             AiServiceClient aiServiceClient,
+            QueryCacheService queryCacheService,
+            RateLimitService rateLimitService,
             AuditService auditService,
             ObjectMapper objectMapper
     ) {
@@ -48,6 +52,8 @@ public class ChatService {
         this.users = users;
         this.documents = documents;
         this.aiServiceClient = aiServiceClient;
+        this.queryCacheService = queryCacheService;
+        this.rateLimitService = rateLimitService;
         this.auditService = auditService;
         this.objectMapper = objectMapper;
     }
@@ -59,10 +65,13 @@ public class ChatService {
             throw new ApiException(HttpStatus.CONFLICT, "Document is not ready for chat yet");
         }
 
+        rateLimitService.checkQueryLimit(principal.getId());
         ChatSession session = getOrCreateSession(principal, document);
         saveMessage(session, ChatRole.USER, request.question(), null, null, null);
 
-        AiQueryResponse ai = aiServiceClient.query(new AiQueryRequest(documentId, principal.getId(), request.question()));
+        AiQueryResponse ai = queryCacheService
+                .get(principal.getId(), documentId, request.question())
+                .orElseGet(() -> fetchAndCache(principal, documentId, request.question()));
         if (ai == null) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "AI service returned no response");
         }
@@ -84,6 +93,14 @@ public class ChatService {
                 citations,
                 ai.riskAlerts() == null ? List.of() : ai.riskAlerts()
         );
+    }
+
+    private AiQueryResponse fetchAndCache(SecurityUser principal, UUID documentId, String question) {
+        AiQueryResponse response = aiServiceClient.query(new AiQueryRequest(documentId, principal.getId(), question));
+        if (response != null) {
+            queryCacheService.put(principal.getId(), documentId, question, response);
+        }
+        return response;
     }
 
     public List<ChatMessageResponse> history(SecurityUser principal, UUID documentId) {

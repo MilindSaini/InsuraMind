@@ -3,6 +3,7 @@ package com.insuramind.document;
 import com.insuramind.common.ApiException;
 import io.minio.BucketExistsArgs;
 import io.minio.GetPresignedObjectUrlArgs;
+import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
@@ -62,6 +63,18 @@ public class MinioStorageService {
             return url.replace(endpoint, publicEndpoint);
         } catch (Exception ex) {
             throw new ApiException(HttpStatus.BAD_GATEWAY, "Could not create file URL: " + ex.getMessage());
+        }
+    }
+
+    public InputStream download(String objectKey) {
+        try {
+            ensureBucket();
+            return minioClient.getObject(GetObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectKey)
+                    .build());
+        } catch (Exception ex) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "Could not read file: " + ex.getMessage());
         }
     }
 

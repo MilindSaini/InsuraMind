@@ -15,6 +15,30 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const original = error.config;
+    if (typeof window === "undefined" || error.response?.status !== 401 || original?._retry) {
+      return Promise.reject(error);
+    }
+    const refreshToken = localStorage.getItem("insuramind_refresh_token");
+    if (!refreshToken) {
+      return Promise.reject(error);
+    }
+    original._retry = true;
+    try {
+      const { data } = await axios.post<AuthResponse>(`${API_URL}/auth/refresh`, { refreshToken });
+      saveAuth(data);
+      original.headers.Authorization = `Bearer ${data.accessToken}`;
+      return api(original);
+    } catch (refreshError) {
+      logout();
+      return Promise.reject(refreshError);
+    }
+  }
+);
+
 export async function signup(payload: { fullName: string; email: string; password: string }) {
   const { data } = await api.post<AuthResponse>("/auth/signup", payload);
   saveAuth(data);
@@ -29,11 +53,13 @@ export async function login(payload: { email: string; password: string }) {
 
 export function saveAuth(auth: AuthResponse) {
   localStorage.setItem("insuramind_token", auth.accessToken);
+  localStorage.setItem("insuramind_refresh_token", auth.refreshToken);
   localStorage.setItem("insuramind_user", JSON.stringify(auth));
 }
 
 export function logout() {
   localStorage.removeItem("insuramind_token");
+  localStorage.removeItem("insuramind_refresh_token");
   localStorage.removeItem("insuramind_user");
   window.location.href = "/login";
 }
@@ -63,6 +89,11 @@ export async function getDocument(id: string) {
 
 export async function getFileUrl(id: string) {
   const { data } = await api.get<{ url: string; expiresInSeconds: number }>(`/documents/${id}/file-url`);
+  return data;
+}
+
+export async function getDocumentPreviewBlob(id: string) {
+  const { data } = await api.get<Blob>(`/documents/${id}/preview`, { responseType: "blob" });
   return data;
 }
 

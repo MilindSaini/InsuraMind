@@ -36,8 +36,12 @@ class Settings(BaseModel):
     qdrant_collection: str = os.getenv("QDRANT_COLLECTION", "insuramind_chunks")
 
     gemini_api_key: str = os.getenv("GEMINI_API_KEY", "")
-    gemini_fast_model: str = os.getenv("GEMINI_FAST_MODEL", "gemini-1.5-flash")
-    gemini_reasoning_model: str = os.getenv("GEMINI_REASONING_MODEL", "gemini-1.5-pro")
+    gemini_fast_model: str = os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash")
+    gemini_reasoning_model: str = os.getenv("GEMINI_REASONING_MODEL", "gemini-2.5-pro")
+    gemini_verifier_model: str = os.getenv(
+        "GEMINI_VERIFIER_MODEL",
+        os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash"),
+    )
 
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
     embedding_dim: int = int(os.getenv("EMBEDDING_DIM", "1024"))

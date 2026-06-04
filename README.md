@@ -5,9 +5,12 @@ InsuraMind is an AI-powered insurance intelligence platform. Version 1 turns upl
 ## Version 1 Scope
 
 - Next.js frontend with auth screens, dashboard, upload, document viewer, insights, and chat.
-- Spring Boot backend for auth, document upload, metadata, MinIO storage, chat orchestration, audit logs, and AI callbacks.
+- Spring Boot backend for auth, refresh tokens, role-backed authorities, document upload, metadata, MinIO storage, chat orchestration, audit logs, Redis query cache/rate limiting, and AI callbacks.
 - FastAPI AI service for OCR/text extraction, document classification, semantic chunking, entity extraction, embeddings, retrieval, reranking, answer generation, and verification.
-- PostgreSQL, Qdrant, MinIO, and Redis via Docker Compose.
+- PostgreSQL/Supabase, Qdrant, MinIO, and Redis via Docker Compose/local services.
+- Redis-backed query response cache with a 24-hour default TTL.
+- Redis-backed per-user query rate limiting.
+- Gemini-backed verifier model for answer grounding checks.
 
 ## Local Prerequisites
 
@@ -65,6 +68,13 @@ npm run dev
 ```
 
 Frontend: `http://localhost:3000`
+
+## V1 Exclusions
+
+These are intentionally not part of this V1 build:
+
+- Nginx reverse proxy / SSL termination
+- GitHub Actions CI
 
 ## First Test Flow
 
