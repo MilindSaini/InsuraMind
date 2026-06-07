@@ -20,6 +20,7 @@ class Chunk(BaseModel):
     chunkIndex: int
     sectionType: str
     heading: Optional[str] = None
+    parentHeading: Optional[str] = None
     text: str
     pageNumber: Optional[int] = None
     riskLevel: str = "low"
@@ -39,6 +40,7 @@ class Citation(BaseModel):
     citationLabel: Optional[str] = None
     pageNumber: Optional[int] = None
     sectionType: str
+    heading: Optional[str] = None
     text: str
     score: float
 

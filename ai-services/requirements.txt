@@ -9,7 +9,7 @@ pdfplumber
 paddleocr
 opencv-python
 sentence-transformers
-qdrant-client
+qdrant-client==1.11.3
 langchain
 google-genai
 numpy
@@ -17,3 +17,6 @@ pandas
 scikit-learn
 rank-bm25
 langdetect
+# Phase 1 — observability + durable pipeline
+redis[hiredis]
+structlog

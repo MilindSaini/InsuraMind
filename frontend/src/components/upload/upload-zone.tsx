@@ -2,11 +2,11 @@
 
 import { UploadCloud } from "lucide-react";
 import { ChangeEvent, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 
 export function UploadZone({ onUpload }: { onUpload: (file: File) => Promise<void> }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
   async function handleFile(file?: File) {
     if (!file) return;
@@ -25,20 +25,38 @@ export function UploadZone({ onUpload }: { onUpload: (file: File) => Promise<voi
 
   return (
     <div
-      onDragOver={(e) => e.preventDefault()}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragOver(true);
+      }}
+      onDragLeave={() => setDragOver(false)}
       onDrop={(e) => {
         e.preventDefault();
+        setDragOver(false);
         void handleFile(e.dataTransfer.files?.[0]);
       }}
-      className="flex min-h-40 flex-col items-center justify-center rounded-lg border border-dashed border-line bg-white p-6 text-center"
+      className={`flex min-h-[280px] flex-col items-center justify-center rounded-card border-2 border-dashed p-8 text-center transition-all duration-300 ${
+        dragOver
+          ? "border-gold bg-gold-surface shadow-gold-glow"
+          : "border-gold/30 bg-gold-surface/50 hover:border-gold hover:bg-gold-surface"
+      }`}
     >
-      <UploadCloud className="mb-3 h-9 w-9 text-brand" />
-      <p className="font-medium">Upload a policy or claim document</p>
-      <p className="mt-1 text-sm text-muted">PDF, PNG, JPG, DOCX, or ZIP up to 50 MB</p>
+      <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gold-surface">
+        <UploadCloud className={`h-8 w-8 text-gold transition-transform ${dragOver ? "scale-110" : ""}`} />
+      </div>
+      <p className="font-heading text-lg font-semibold text-text-primary">Drop your document here</p>
+      <p className="mt-1.5 text-body-sm text-text-muted">
+        Supports PDF, DOCX, JPG, and PNG up to 50MB
+      </p>
       <input ref={inputRef} type="file" hidden onChange={onChange} accept=".pdf,.png,.jpg,.jpeg,.docx,.zip" />
-      <Button type="button" className="mt-4" disabled={busy} onClick={() => inputRef.current?.click()}>
-        {busy ? "Uploading..." : "Choose file"}
-      </Button>
+      <button
+        type="button"
+        className="btn-secondary mt-6 !h-10 !text-sm"
+        disabled={busy}
+        onClick={() => inputRef.current?.click()}
+      >
+        {busy ? "Uploading..." : "Browse Files"}
+      </button>
     </div>
   );
 }

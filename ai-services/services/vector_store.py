@@ -6,7 +6,10 @@ from uuid import uuid4
 
 from config import get_settings
 from models.schemas import Chunk
-from utils.text_utils import keyword_score, section_hint
+from utils.logging import get_logger
+from utils.text_utils import is_noise_text, keyword_score, section_hint
+
+log = get_logger("services.vector_store")
 
 
 class VectorStore:
@@ -21,8 +24,8 @@ class VectorStore:
                 self._ensure_collection(len(vectors[0]) if vectors else self.settings.embedding_dim)
                 self._qdrant_upsert(document_id, user_id, chunks, vectors)
                 return
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("vector_store.qdrant_upsert_failed", error=str(exc), fallback="file_index")
         self._fallback_upsert(document_id, user_id, chunks, vectors)
 
     def search(self, document_id: str, user_id: str, query: str, vector: list[float], limit: int = 8) -> list[dict[str, Any]]:
@@ -30,16 +33,19 @@ class VectorStore:
             try:
                 self._ensure_collection(len(vector))
                 return self._qdrant_search(document_id, user_id, query, vector, limit)
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("vector_store.qdrant_search_failed", error=str(exc), fallback="file_index")
         return self._fallback_search(document_id, user_id, query, vector, limit)
 
     def _qdrant_client(self):
         try:
             from qdrant_client import QdrantClient
 
-            return QdrantClient(url=self.settings.qdrant_url)
-        except Exception:
+            client = QdrantClient(url=self.settings.qdrant_url)
+            log.info("vector_store.qdrant_connected", url=self.settings.qdrant_url)
+            return client
+        except Exception as exc:
+            log.warning("vector_store.qdrant_unavailable", error=str(exc), fallback="file_index")
             return None
 
     def _ensure_collection(self, vector_size: int) -> None:
@@ -67,6 +73,7 @@ class VectorStore:
                     payload={
                         "document_id": document_id,
                         "user_id": user_id,
+                        "parent_heading": chunk.parentHeading or chunk.heading,
                         **chunk.model_dump(),
                     },
                 )
@@ -92,6 +99,8 @@ class VectorStore:
         for item in results:
             payload = item.payload or {}
             text = payload.get("text", "")
+            if payload.get("sectionType") == "noise" or is_noise_text(text):
+                continue
             score = float(item.score) + keyword_score(query, text) * 0.25
             if hint and payload.get("sectionType") == hint:
                 score += 0.45
@@ -124,6 +133,8 @@ class VectorStore:
         ]
         hint = section_hint(query)
         for row in rows:
+            if row.get("sectionType") == "noise" or is_noise_text(row.get("text", "")):
+                continue
             semantic = self._cosine(vector, row.get("vector", []))
             lexical = keyword_score(query, row.get("text", ""))
             score = semantic + lexical * 0.35
@@ -150,6 +161,8 @@ class VectorStore:
 
         for row in rows:
             section = row.get("sectionType") or "general"
+            if section == "noise":
+                continue
             if section in seen_sections:
                 continue
             selected.append(row)
@@ -169,7 +182,8 @@ class VectorStore:
             return []
         try:
             return json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
+        except Exception as exc:
+            log.warning("vector_store.fallback_load_failed", path=str(path), error=str(exc))
             return []
 
     def _cosine(self, a: list[float], b: list[float]) -> float:

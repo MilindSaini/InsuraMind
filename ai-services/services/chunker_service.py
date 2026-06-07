@@ -2,7 +2,7 @@ import re
 from typing import Any
 
 from models.schemas import Chunk
-from utils.text_utils import clean_text
+from utils.text_utils import clean_text, is_noise_text, strip_repeated_headers
 
 
 class ChunkerService:
@@ -26,17 +26,27 @@ class ChunkerService:
 
         chunks: list[Chunk] = []
         for heading, text, page_no in raw_sections:
+            # Strip repeated watermark/header lines before processing
+            text = strip_repeated_headers(text)
+            if not text.strip():
+                continue
             for part in self._fit_size(text, 1800):
-                section_type = self._section_type(f"{heading or ''}\n{part}")
+                # Check noise BEFORE section classification — prevents
+                # watermark text with keywords from polluting insight cards
+                if is_noise_text(part):
+                    section_type = "noise"
+                else:
+                    section_type = self._section_type(f"{heading or ''}\n{part}")
                 risk_level = self._risk(section_type, part)
                 chunk = Chunk(
                     chunkIndex=len(chunks),
                     sectionType=section_type,
                     heading=heading,
+                    parentHeading=heading,
                     text=part,
                     pageNumber=page_no,
                     riskLevel=risk_level,
-                    importance="critical" if risk_level == "high" else "normal",
+                    importance="low" if section_type == "noise" else ("critical" if risk_level == "high" else "normal"),
                     citationLabel=f"p.{page_no} c.{len(chunks) + 1}",
                 )
                 chunks.append(chunk)
@@ -100,6 +110,8 @@ class ChunkerService:
 
     def _risk(self, section_type: str, text: str) -> str:
         t = text.lower()
+        if section_type == "noise":
+            return "low"
         if section_type in {"exclusion", "waiting_period"}:
             return "high"
         if any(term in t for term in ["co-pay", "copay", "deductible", "sub-limit", "room rent", "not payable"]):

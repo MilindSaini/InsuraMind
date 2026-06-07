@@ -1,11 +1,19 @@
 import { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
-export function Button({ className, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) {
+type ButtonVariant = "primary" | "secondary" | "ghost";
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+}
+
+export function Button({ className, variant = "primary", ...props }: ButtonProps) {
   return (
     <button
       className={cn(
-        "inline-flex h-10 items-center justify-center gap-2 rounded-md bg-brand px-4 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50",
+        variant === "primary" && "btn-primary-gradient",
+        variant === "secondary" && "btn-secondary",
+        variant === "ghost" && "btn-ghost",
         className
       )}
       {...props}

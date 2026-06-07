@@ -3,7 +3,10 @@ import math
 from functools import lru_cache
 
 from config import get_settings
+from utils.logging import get_logger
 from utils.text_utils import words
+
+log = get_logger("services.embedding")
 
 
 class EmbeddingService:
@@ -16,8 +19,8 @@ class EmbeddingService:
             try:
                 vectors = self._model.encode(texts, normalize_embeddings=True)
                 return [list(map(float, vector)) for vector in vectors]
-            except Exception:
-                pass
+            except Exception as exc:
+                log.warning("embedding.model_failed", error=str(exc), fallback="hash_embedding")
         return [self._hash_embedding(text) for text in texts]
 
     def embed_one(self, text: str) -> list[float]:
@@ -30,8 +33,16 @@ class EmbeddingService:
         try:
             from sentence_transformers import SentenceTransformer
 
-            return SentenceTransformer(self.settings.embedding_model)
-        except Exception:
+            model = SentenceTransformer(self.settings.embedding_model)
+            log.info("embedding.model_loaded", model=self.settings.embedding_model)
+            return model
+        except Exception as exc:
+            log.warning(
+                "embedding.model_load_failed",
+                model=self.settings.embedding_model,
+                error=str(exc),
+                fallback="hash_embedding",
+            )
             return None
 
     def _hash_embedding(self, text: str) -> list[float]:

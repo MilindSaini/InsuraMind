@@ -82,7 +82,7 @@ public class ChatService {
         auditService.log(principal.getId(), "DOCUMENT_QUERY", documentId.toString(), request.question());
 
         List<CitationDto> citations = ai.citations() == null ? List.of() : ai.citations().stream()
-                .map(c -> new CitationDto(c.citationLabel(), c.pageNumber(), c.sectionType(), c.text(), c.score()))
+            .map(c -> new CitationDto(c.citationLabel(), c.pageNumber(), c.sectionType(), c.heading(), c.text(), c.score()))
                 .toList();
         return new ChatResponse(
                 session.getId(),

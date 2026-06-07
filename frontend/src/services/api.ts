@@ -87,6 +87,10 @@ export async function getDocument(id: string) {
   return data;
 }
 
+export async function deleteDocument(id: string) {
+  await api.delete(`/documents/${id}`);
+}
+
 export async function getFileUrl(id: string) {
   const { data } = await api.get<{ url: string; expiresInSeconds: number }>(`/documents/${id}/file-url`);
   return data;

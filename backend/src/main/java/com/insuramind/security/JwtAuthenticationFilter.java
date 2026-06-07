@@ -25,13 +25,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
-        String header = request.getHeader("Authorization");
-        if (header == null || !header.startsWith("Bearer ")) {
+        String token = extractToken(request);
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        String token = header.substring(7);
         try {
             String username = jwtService.username(token);
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -48,5 +47,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.clearContext();
         }
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Extract the JWT from either:
+     * 1. Authorization: Bearer <token>  header (standard)
+     * 2. ?token=<token> query parameter  (EventSource SSE fallback — browsers
+     *    cannot set custom headers on EventSource connections)
+     */
+    private String extractToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+        if (header != null && header.startsWith("Bearer ")) {
+            return header.substring(7);
+        }
+        // Query-param fallback — only honoured on SSE endpoints
+        String path = request.getRequestURI();
+        if (path != null && path.endsWith("/status-stream")) {
+            return request.getParameter("token");
+        }
+        return null;
     }
 }

@@ -78,6 +78,18 @@ public class MinioStorageService {
         }
     }
 
+    public void delete(String objectKey) {
+        try {
+            ensureBucket();
+            minioClient.removeObject(io.minio.RemoveObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(objectKey)
+                    .build());
+        } catch (Exception ex) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "Could not delete file: " + ex.getMessage());
+        }
+    }
+
     private void ensureBucket() throws Exception {
         boolean exists = minioClient.bucketExists(BucketExistsArgs.builder().bucket(bucket).build());
         if (!exists) {

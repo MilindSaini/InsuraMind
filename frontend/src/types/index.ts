@@ -25,6 +25,7 @@ export type Chunk = {
   chunkIndex: number;
   sectionType: string;
   heading?: string;
+  parentHeading?: string;
   text: string;
   pageNumber?: number;
   riskLevel: string;
@@ -55,6 +56,7 @@ export type Citation = {
   citationLabel?: string;
   pageNumber?: number;
   sectionType: string;
+  heading?: string;
   text: string;
   score: number;
 };

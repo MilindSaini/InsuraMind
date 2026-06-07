@@ -31,6 +31,9 @@ public class DocumentChunk {
     @Column(length = 512)
     private String heading;
 
+    @Column(name = "parent_heading", length = 512)
+    private String parentHeading;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String text;
 
@@ -65,6 +68,8 @@ public class DocumentChunk {
     public void setSectionType(String sectionType) { this.sectionType = sectionType; }
     public String getHeading() { return heading; }
     public void setHeading(String heading) { this.heading = heading; }
+    public String getParentHeading() { return parentHeading; }
+    public void setParentHeading(String parentHeading) { this.parentHeading = parentHeading; }
     public String getText() { return text; }
     public void setText(String text) { this.text = text; }
     public Integer getPageNumber() { return pageNumber; }

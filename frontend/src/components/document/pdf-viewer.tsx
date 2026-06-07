@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, ExternalLink, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, FileText } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getDocumentPreviewBlob } from "@/services/api";
 import type { Chunk, Citation } from "@/types";
@@ -19,7 +19,7 @@ type HighlightItem = {
 export function PdfViewer({
   documentId,
   highlights = [],
-  citations = []
+  citations = [],
 }: {
   documentId: string;
   highlights?: Chunk[];
@@ -28,11 +28,12 @@ export function PdfViewer({
   const previewBlob = useQuery({
     queryKey: ["document-preview", documentId],
     queryFn: () => getDocumentPreviewBlob(documentId),
-    staleTime: 10 * 60 * 1000
+    staleTime: 10 * 60 * 1000,
   });
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState(1);
+  const [zoom, setZoom] = useState(100);
 
   const highlightItems = useMemo(() => mergeHighlights(highlights, citations), [highlights, citations]);
   const highlightPages = useMemo(() => {
@@ -94,37 +95,69 @@ export function PdfViewer({
   }, [previewBlob.data]);
 
   if (previewBlob.isLoading) {
-    return <div className="flex h-full items-center justify-center text-sm text-muted">Loading document...</div>;
+    return (
+      <div className="flex h-full items-center justify-center rounded-card border border-line bg-white p-12">
+        <div className="text-center">
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gold-surface">
+            <FileText className="h-6 w-6 text-gold animate-pulse" />
+          </div>
+          <p className="text-body-sm text-text-muted">Loading document...</p>
+        </div>
+      </div>
+    );
   }
 
   if (previewBlob.isError || previewError || !previewUrl) {
     return (
-      <div className="flex h-full flex-col items-center justify-center px-6 text-center text-sm text-muted">
-        <FileText className="mb-2 h-8 w-8" />
-        <p>Document preview is unavailable.</p>
-        {previewError && <p className="mt-2 max-w-xl text-risk">{previewError}</p>}
+      <div className="flex h-full flex-col items-center justify-center rounded-card border border-line bg-white px-6 py-12 text-center">
+        <FileText className="mb-3 h-10 w-10 text-text-muted/40" />
+        <p className="text-body-sm text-text-muted">Document preview is unavailable.</p>
+        {previewError && <p className="mt-2 max-w-xl text-sm text-danger">{previewError}</p>}
       </div>
     );
   }
 
   return (
-    <div className="grid min-h-[680px] gap-3 lg:grid-rows-[auto_1fr_auto]">
-      <div className="flex items-center justify-between rounded-lg border border-line bg-white px-3 py-2">
+    <div className="space-y-3">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between rounded-card border border-line bg-white px-4 py-2.5">
         <div className="flex items-center gap-2">
+          {/* Zoom controls */}
           <button
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-line disabled:opacity-40"
+            onClick={() => setZoom((z) => Math.max(50, z - 25))}
+            className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel hover:text-text-primary disabled:opacity-40"
+            disabled={zoom <= 50}
+            aria-label="Zoom out"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </button>
+          <span className="min-w-[3rem] text-center text-body-sm font-medium text-text-primary">{zoom}%</span>
+          <button
+            onClick={() => setZoom((z) => Math.min(200, z + 25))}
+            className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel hover:text-text-primary disabled:opacity-40"
+            disabled={zoom >= 200}
+            aria-label="Zoom in"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </button>
+
+          <div className="mx-2 h-5 w-px bg-line" />
+
+          {/* Page navigation */}
+          <button
+            className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel disabled:opacity-40"
             onClick={() => setSelectedPage((page) => previousPage(page, highlightPages))}
-            disabled={highlightPages.length === 0 || selectedPage <= highlightPages[0]}
-            aria-label="Previous highlighted page"
+            disabled={highlightPages.length === 0 || selectedPage <= (highlightPages[0] ?? 1)}
+            aria-label="Previous page"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <label className="flex items-center gap-2 text-sm font-medium">
-            Page
+          <div className="flex items-center gap-2 text-body-sm font-medium">
+            <span>Page</span>
             <select
               value={selectedPage}
               onChange={(event) => setSelectedPage(Number(event.target.value))}
-              className="h-9 rounded-md border border-line bg-white px-2 text-sm outline-none focus:border-brand"
+              className="h-8 rounded-input border border-line bg-white px-2 text-sm outline-none focus:border-gold"
             >
               {pageOptions(highlightPages, selectedPage).map((page) => (
                 <option key={page} value={page}>
@@ -132,54 +165,69 @@ export function PdfViewer({
                 </option>
               ))}
             </select>
-          </label>
+            {highlightPages.length > 0 && (
+              <span className="text-text-muted">of {highlightPages[highlightPages.length - 1]}</span>
+            )}
+          </div>
           <button
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-line disabled:opacity-40"
+            className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel disabled:opacity-40"
             onClick={() => setSelectedPage((page) => nextPage(page, highlightPages))}
             disabled={highlightPages.length === 0 || selectedPage >= highlightPages[highlightPages.length - 1]}
-            aria-label="Next highlighted page"
+            aria-label="Next page"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
-        <a
-          href={previewUrl || undefined}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 rounded-md border border-line px-3 py-1.5 text-xs font-medium text-ink hover:bg-panel"
-        >
-          <ExternalLink className="h-3.5 w-3.5" />
-          Open in new tab
-        </a>
       </div>
 
-      <div className="overflow-auto rounded-lg border border-line bg-white p-3">
-        <div className="h-[760px] overflow-hidden rounded-md border border-line bg-slate-50">
-          <iframe key={selectedPage} title="PDF preview" src={iframeSrc} className="h-full w-full" />
+      {/* PDF Viewer */}
+      <div className="overflow-hidden rounded-card border border-line bg-white p-3">
+        <div
+          className="overflow-auto rounded-input border border-border-subtle bg-surface-secondary"
+          style={{ height: 680 }}
+        >
+          <iframe
+            key={`${selectedPage}-${zoom}`}
+            title="PDF preview"
+            src={iframeSrc}
+            className="w-full border-none"
+            style={{
+              height: `${680 * (zoom / 100)}px`,
+              transform: `scale(${zoom / 100})`,
+              transformOrigin: "top left",
+              width: `${100 / (zoom / 100)}%`,
+            }}
+          />
         </div>
       </div>
 
-      <div className="rounded-lg border border-line bg-white p-3">
-        <div className="mb-2 flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold">Highlights on page {selectedPage}</h2>
-          <span className="text-xs text-muted">{pageItems.length} source matches</span>
+      {/* Highlights section */}
+      <div className="rounded-card border border-line bg-white p-4">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-heading text-sm font-semibold text-text-primary">
+            Highlights on page {selectedPage}
+          </h2>
+          <span className="text-caption text-text-muted">{pageItems.length} source matches</span>
         </div>
         {pageItems.length === 0 ? (
-          <p className="text-sm text-muted">No cited or high-risk clauses are mapped to page {selectedPage}.</p>
+          <p className="text-body-sm text-text-muted">
+            No cited or high-risk clauses are mapped to page {selectedPage}.
+          </p>
         ) : (
-          <div className="grid gap-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {pageItems.map((item) => (
               <article
                 key={item.id}
-                className={`rounded-md border p-3 ${
-                  item.source === "answer" ? "border-blue-200 bg-blue-50" : "border-line bg-panel"
+                className={`rounded-input border p-3 ${
+                  item.source === "answer"
+                    ? "border-accent/20 bg-accent-surface"
+                    : "border-line bg-surface-secondary"
                 }`}
               >
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium uppercase text-muted">{item.sectionType.replaceAll("_", " ")}</span>
-                  <span className="text-xs text-muted">{item.label}</span>
+                <div className="mb-1.5 flex items-center justify-between gap-2">
+                  <span className="text-caption font-semibold text-accent">{item.label}</span>
                 </div>
-                <p className="line-clamp-3 text-sm text-ink">{item.text}</p>
+                <p className="line-clamp-3 text-body-sm text-text-secondary">{item.text}</p>
               </article>
             ))}
           </div>
@@ -197,7 +245,7 @@ function mergeHighlights(chunks: Chunk[], citations: Citation[]): HighlightItem[
       pageNumber: citation.pageNumber,
       sectionType: citation.sectionType,
       text: citation.text,
-      source: "answer" as const
+      source: "answer" as const,
     })),
     ...chunks.map((chunk) => ({
       id: `insight-${chunk.id}`,
@@ -206,8 +254,8 @@ function mergeHighlights(chunks: Chunk[], citations: Citation[]): HighlightItem[
       sectionType: chunk.sectionType,
       text: chunk.text,
       riskLevel: chunk.riskLevel,
-      source: "insight" as const
-    }))
+      source: "insight" as const,
+    })),
   ];
 
   const seen = new Set<string>();

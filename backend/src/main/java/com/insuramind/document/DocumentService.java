@@ -11,6 +11,7 @@ import com.insuramind.security.SecurityUser;
 import com.insuramind.user.User;
 import com.insuramind.user.UserRepository;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.stereotype.Service;
@@ -40,6 +41,7 @@ public class DocumentService {
     private final UserRepository users;
     private final MinioStorageService storage;
     private final DocumentProcessingService processingService;
+    private final ApplicationEventPublisher eventPublisher;
     private final long maxBytes;
 
     public DocumentService(
@@ -49,6 +51,7 @@ public class DocumentService {
             UserRepository users,
             MinioStorageService storage,
             DocumentProcessingService processingService,
+            ApplicationEventPublisher eventPublisher,
             @Value("${app.upload.max-bytes}") long maxBytes
     ) {
         this.documents = documents;
@@ -57,6 +60,7 @@ public class DocumentService {
         this.users = users;
         this.storage = storage;
         this.processingService = processingService;
+        this.eventPublisher = eventPublisher;
         this.maxBytes = maxBytes;
     }
 
@@ -101,6 +105,18 @@ public class DocumentService {
         return DocumentResponse.from(getOwnedDocument(principal, documentId));
     }
 
+    @Transactional
+    public void delete(SecurityUser principal, UUID documentId) {
+        InsuranceDocument document = getOwnedDocument(principal, documentId);
+        String objectKey = document.getObjectKey();
+        documents.delete(document);
+        try {
+            storage.delete(objectKey);
+        } catch (Exception ignored) {
+            // File may already be gone — document record deletion is the priority
+        }
+    }
+
     public SignedUrlResponse signedUrl(SecurityUser principal, UUID documentId) {
         InsuranceDocument document = getOwnedDocument(principal, documentId);
         return new SignedUrlResponse(storage.signedUrl(document.getObjectKey(), 900), 900);
@@ -130,7 +146,7 @@ public class DocumentService {
                 filter(all, "coverage"),
                 filter(all, "exclusion"),
                 filter(all, "waiting_period"),
-                all.stream().filter(c -> "high".equalsIgnoreCase(c.riskLevel())).toList(),
+                all.stream().filter(c -> "high".equalsIgnoreCase(c.riskLevel()) && !"noise".equalsIgnoreCase(c.sectionType())).toList(),
                 all
         );
     }
@@ -143,23 +159,25 @@ public class DocumentService {
         entities.deleteByDocumentId(documentId);
 
         if (request.chunks() != null) {
-            request.chunks().forEach(in -> {
+            List<DocumentChunk> chunkList = request.chunks().stream().map(in -> {
                 DocumentChunk chunk = new DocumentChunk();
                 chunk.setDocument(document);
                 chunk.setChunkIndex(in.chunkIndex());
                 chunk.setSectionType(defaultValue(in.sectionType(), "general"));
-                chunk.setHeading(in.heading());
+                chunk.setHeading(firstNonBlank(in.heading(), in.parentHeading()));
+                chunk.setParentHeading(in.parentHeading());
                 chunk.setText(defaultValue(in.text(), ""));
                 chunk.setPageNumber(in.pageNumber());
                 chunk.setRiskLevel(defaultValue(in.riskLevel(), "low"));
                 chunk.setImportance(defaultValue(in.importance(), "normal"));
                 chunk.setCitationLabel(in.citationLabel());
-                chunks.save(chunk);
-            });
+                return chunk;
+            }).toList();
+            chunks.saveAll(chunkList);
         }
 
         if (request.entities() != null) {
-            request.entities().forEach(in -> {
+            List<ExtractedEntity> entityList = request.entities().stream().map(in -> {
                 ExtractedEntity entity = new ExtractedEntity();
                 entity.setDocument(document);
                 entity.setEntityType(defaultValue(in.entityType(), "unknown"));
@@ -167,14 +185,18 @@ public class DocumentService {
                 entity.setConfidence(in.confidence());
                 entity.setPageNumber(in.pageNumber());
                 entity.setSourceChunkIndex(in.sourceChunkIndex());
-                entities.save(entity);
-            });
+                return entity;
+            }).toList();
+            entities.saveAll(entityList);
         }
 
         document.setDocumentType(defaultValue(request.documentType(), "policy"));
         document.setProcessingMessage(defaultValue(request.message(), "Document processed"));
-        document.setStatus("FAILED".equalsIgnoreCase(request.status()) ? DocumentStatus.FAILED : DocumentStatus.READY);
+        DocumentStatus newStatus = "FAILED".equalsIgnoreCase(request.status()) ? DocumentStatus.FAILED : DocumentStatus.READY;
+        document.setStatus(newStatus);
         documents.save(document);
+        eventPublisher.publishEvent(new DocumentStatusChangedEvent(
+                documentId, newStatus.name(), document.getProcessingMessage()));
     }
 
     @Transactional
@@ -183,6 +205,8 @@ public class DocumentService {
             document.setStatus(DocumentStatus.PROCESSING);
             document.setProcessingMessage(message);
             documents.save(document);
+            eventPublisher.publishEvent(new DocumentStatusChangedEvent(
+                    documentId, DocumentStatus.PROCESSING.name(), message));
         });
     }
 
@@ -192,6 +216,8 @@ public class DocumentService {
             document.setStatus(DocumentStatus.FAILED);
             document.setProcessingMessage(message);
             documents.save(document);
+            eventPublisher.publishEvent(new DocumentStatusChangedEvent(
+                    documentId, DocumentStatus.FAILED.name(), message));
         });
     }
 
@@ -201,11 +227,22 @@ public class DocumentService {
     }
 
     private List<ChunkResponse> filter(List<ChunkResponse> all, String section) {
-        return all.stream().filter(c -> section.equalsIgnoreCase(c.sectionType())).toList();
+        return all.stream()
+                .filter(c -> section.equalsIgnoreCase(c.sectionType()) && !"noise".equalsIgnoreCase(c.sectionType()))
+                .toList();
     }
 
     private String defaultValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private void validate(MultipartFile file) {

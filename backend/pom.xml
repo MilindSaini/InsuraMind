@@ -18,7 +18,7 @@
     <description>Spring Boot API for InsuraMind</description>
 
     <properties>
-        <java.version>24</java.version>
+        <java.version>22</java.version>
         <jjwt.version>0.12.6</jjwt.version>
         <minio.version>8.5.17</minio.version>
     </properties>

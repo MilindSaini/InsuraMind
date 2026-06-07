@@ -4,6 +4,7 @@ public record InternalChunkRequest(
         int chunkIndex,
         String sectionType,
         String heading,
+        String parentHeading,
         String text,
         Integer pageNumber,
         String riskLevel,
