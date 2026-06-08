@@ -42,6 +42,7 @@ public class DocumentService {
     private final MinioStorageService storage;
     private final DocumentProcessingService processingService;
     private final ApplicationEventPublisher eventPublisher;
+    private final DocumentTypeConfigRepository dtrRepository;
     private final long maxBytes;
 
     public DocumentService(
@@ -52,6 +53,7 @@ public class DocumentService {
             MinioStorageService storage,
             DocumentProcessingService processingService,
             ApplicationEventPublisher eventPublisher,
+            DocumentTypeConfigRepository dtrRepository,
             @Value("${app.upload.max-bytes}") long maxBytes
     ) {
         this.documents = documents;
@@ -61,6 +63,7 @@ public class DocumentService {
         this.storage = storage;
         this.processingService = processingService;
         this.eventPublisher = eventPublisher;
+        this.dtrRepository = dtrRepository;
         this.maxBytes = maxBytes;
     }
 
@@ -140,14 +143,48 @@ public class DocumentService {
         List<EntityResponse> extracted = entities.findByDocumentIdOrderByEntityTypeAsc(documentId).stream()
                 .map(EntityResponse::from)
                 .toList();
+
+        // Resolve DTR config for dynamic sections
+        String docType = document.getDocumentType();
+        String displayName = null;
+        java.util.Map<String, List<ChunkResponse>> sections = new java.util.LinkedHashMap<>();
+
+        DocumentTypeConfig dtrConfig = dtrRepository.findByDocType(docType != null ? docType : "").orElse(null);
+        if (dtrConfig != null) {
+            displayName = dtrConfig.getDisplayName();
+            // Build dynamic sections from DTR taxonomy
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                com.fasterxml.jackson.databind.JsonNode taxonomy = mapper.readTree(
+                        dtrConfig.getSectionTaxonomy() != null ? dtrConfig.getSectionTaxonomy() : "{}"
+                );
+                taxonomy.fieldNames().forEachRemaining(sectionKey -> {
+                    List<ChunkResponse> filtered = filter(all, sectionKey);
+                    if (!filtered.isEmpty()) {
+                        sections.put(sectionKey, filtered);
+                    }
+                });
+            } catch (Exception ignored) {
+                // Fall back to no dynamic sections
+            }
+        }
+
         return new InsightResponse(
-                DocumentResponse.from(document),
+                DocumentResponse.from(document, displayName),
                 extracted,
                 filter(all, "coverage"),
                 filter(all, "exclusion"),
                 filter(all, "waiting_period"),
-                all.stream().filter(c -> "high".equalsIgnoreCase(c.riskLevel()) && !"noise".equalsIgnoreCase(c.sectionType())).toList(),
-                all
+                all.stream().filter(c -> "high".equalsIgnoreCase(c.riskLevel()) 
+                        && !"noise".equalsIgnoreCase(c.sectionType())
+                        && !"coverage".equalsIgnoreCase(c.sectionType())
+                        && !"exclusion".equalsIgnoreCase(c.sectionType())
+                        && !"waiting_period".equalsIgnoreCase(c.sectionType())
+                        && !sections.containsKey(c.sectionType())).toList(),
+                all,
+                docType,
+                displayName,
+                sections
         );
     }
 
@@ -169,6 +206,8 @@ public class DocumentService {
                 chunk.setText(defaultValue(in.text(), ""));
                 chunk.setPageNumber(in.pageNumber());
                 chunk.setRiskLevel(defaultValue(in.riskLevel(), "low"));
+                chunk.setRiskScore(in.riskScore() != null ? in.riskScore() : 0.0f);
+                chunk.setRiskReason(defaultValue(in.riskReason(), ""));
                 chunk.setImportance(defaultValue(in.importance(), "normal"));
                 chunk.setCitationLabel(in.citationLabel());
                 return chunk;

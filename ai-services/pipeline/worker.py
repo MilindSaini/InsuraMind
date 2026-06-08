@@ -70,8 +70,11 @@ class DocumentPipelineWorker:
     async def _consume_loop(self) -> None:
         while self._running:
             try:
+                tasks = []
                 # 1. Reclaim stale messages from crashed consumers (PEL)
-                await self._reclaim_stale()
+                reclaimed = await self._reclaim_stale()
+                for msg_id, data in reclaimed:
+                    tasks.append(asyncio.create_task(self._handle_message(msg_id, data)))
 
                 # 2. Read new messages
                 results = await self._redis.xreadgroup(
@@ -81,14 +84,12 @@ class DocumentPipelineWorker:
                     count=BATCH_SIZE,
                     block=BLOCK_MS,
                 )
-                if not results:
-                    continue
-
-                for _stream, messages in results:
-                    tasks = [
-                        asyncio.create_task(self._handle_message(msg_id, data))
-                        for msg_id, data in messages
-                    ]
+                if results:
+                    for _stream, messages in results:
+                        for msg_id, data in messages:
+                            tasks.append(asyncio.create_task(self._handle_message(msg_id, data)))
+                            
+                if tasks:
                     await asyncio.gather(*tasks, return_exceptions=True)
 
             except asyncio.CancelledError:
@@ -187,7 +188,7 @@ class DocumentPipelineWorker:
             # Group already exists — that's fine
             pass
 
-    async def _reclaim_stale(self, min_idle_ms: int = 60_000) -> None:
+    async def _reclaim_stale(self, min_idle_ms: int = 60_000) -> list:
         """Reclaim messages from consumers that have been idle > 1 minute."""
         try:
             result = await self._redis.xautoclaim(
@@ -201,8 +202,10 @@ class DocumentPipelineWorker:
             claimed = result[1] if result else []
             if claimed:
                 log.info("worker.reclaimed", count=len(claimed))
+                return claimed
         except Exception:
             pass  # xautoclaim requires Redis 6.2+ — skip silently on older versions
+        return []
 
     async def _delivery_count(self, msg_id: bytes) -> int:
         try:

@@ -13,6 +13,8 @@ public record ChunkResponse(
         String text,
         Integer pageNumber,
         String riskLevel,
+        Float riskScore,
+        String riskReason,
         String importance,
         String citationLabel
 ) {
@@ -26,6 +28,8 @@ public record ChunkResponse(
                 chunk.getText(),
                 chunk.getPageNumber(),
                 chunk.getRiskLevel(),
+                chunk.getRiskScore(),
+                chunk.getRiskReason(),
                 chunk.getImportance(),
                 chunk.getCitationLabel()
         );

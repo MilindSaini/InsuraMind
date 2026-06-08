@@ -2,6 +2,7 @@ package com.insuramind.document;
 
 import com.insuramind.common.ApiException;
 import com.insuramind.document.dto.ChunkResponse;
+import com.insuramind.document.dto.DtrConfigResponse;
 import com.insuramind.document.dto.InternalIngestRequest;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -18,19 +19,28 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/internal/documents")
+@RequestMapping("/internal")
 public class InternalDocumentController {
     private final DocumentService documentService;
     private final DocumentChunkRepository chunks;
+    private final DocumentTypeConfigRepository dtrRepository;
     private final String internalToken;
 
-    public InternalDocumentController(DocumentService documentService, DocumentChunkRepository chunks, @Value("${app.internal-token}") String internalToken) {
+    public InternalDocumentController(
+            DocumentService documentService,
+            DocumentChunkRepository chunks,
+            DocumentTypeConfigRepository dtrRepository,
+            @Value("${app.internal-token}") String internalToken
+    ) {
         this.documentService = documentService;
         this.chunks = chunks;
+        this.dtrRepository = dtrRepository;
         this.internalToken = internalToken;
     }
 
-    @PostMapping("/{id}/ingest")
+    // ── Document endpoints ───────────────────────────────────────────────────
+
+    @PostMapping("/documents/{id}/ingest")
     public Map<String, String> ingest(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
             @PathVariable UUID id,
@@ -41,7 +51,7 @@ public class InternalDocumentController {
         return Map.of("status", "ok");
     }
 
-    @PostMapping("/{id}/failed")
+    @PostMapping("/documents/{id}/failed")
     public Map<String, String> failed(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
             @PathVariable UUID id,
@@ -52,7 +62,7 @@ public class InternalDocumentController {
         return Map.of("status", "ok");
     }
 
-    @GetMapping("/{id}/chunks")
+    @GetMapping("/documents/{id}/chunks")
     public List<ChunkResponse> chunks(
             @RequestHeader(name = "X-Internal-Token", required = false) String token,
             @PathVariable UUID id
@@ -60,6 +70,31 @@ public class InternalDocumentController {
         verify(token);
         return chunks.findByDocumentIdOrderByChunkIndex(id).stream().map(ChunkResponse::from).toList();
     }
+
+    // ── DTR endpoints ────────────────────────────────────────────────────────
+
+    @GetMapping("/dtr")
+    public List<DtrConfigResponse> allDtrConfigs(
+            @RequestHeader(name = "X-Internal-Token", required = false) String token
+    ) {
+        verify(token);
+        return dtrRepository.findByEnabledTrue().stream()
+                .map(DtrConfigResponse::from)
+                .toList();
+    }
+
+    @GetMapping("/dtr/{docType}")
+    public DtrConfigResponse dtrConfig(
+            @RequestHeader(name = "X-Internal-Token", required = false) String token,
+            @PathVariable String docType
+    ) {
+        verify(token);
+        return dtrRepository.findByDocType(docType)
+                .map(DtrConfigResponse::from)
+                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "Document type not found: " + docType));
+    }
+
+    // ── Auth ─────────────────────────────────────────────────────────────────
 
     private void verify(String token) {
         if (token == null || !token.equals(internalToken)) {

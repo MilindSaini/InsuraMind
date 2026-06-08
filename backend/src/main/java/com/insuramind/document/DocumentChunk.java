@@ -43,6 +43,12 @@ public class DocumentChunk {
     @Column(name = "risk_level", nullable = false, length = 32)
     private String riskLevel;
 
+    @Column(name = "risk_score")
+    private Float riskScore;
+
+    @Column(name = "risk_reason", length = 1024)
+    private String riskReason;
+
     @Column(nullable = false, length = 32)
     private String importance;
 
@@ -76,6 +82,10 @@ public class DocumentChunk {
     public void setPageNumber(Integer pageNumber) { this.pageNumber = pageNumber; }
     public String getRiskLevel() { return riskLevel; }
     public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
+    public Float getRiskScore() { return riskScore; }
+    public void setRiskScore(Float riskScore) { this.riskScore = riskScore; }
+    public String getRiskReason() { return riskReason; }
+    public void setRiskReason(String riskReason) { this.riskReason = riskReason; }
     public String getImportance() { return importance; }
     public void setImportance(String importance) { this.importance = importance; }
     public String getCitationLabel() { return citationLabel; }

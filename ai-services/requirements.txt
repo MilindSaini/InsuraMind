@@ -4,10 +4,8 @@ pydantic
 python-multipart
 httpx
 minio
-pymupdf
-pdfplumber
-paddleocr
-opencv-python
+docling
+docling-core
 sentence-transformers
 qdrant-client==1.11.3
 langchain
@@ -17,6 +15,9 @@ pandas
 scikit-learn
 rank-bm25
 langdetect
+spacy
 # Phase 1 — observability + durable pipeline
 redis[hiredis]
 structlog
+# Phase 2 — Document Type Registry
+psycopg2-binary

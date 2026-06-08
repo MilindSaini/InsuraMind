@@ -1,28 +1,53 @@
-import re
-from typing import Any
+"""Semantic chunking — DTR-driven section detection.
 
+Section patterns are built from DTR config section_taxonomy when available,
+falling back to insurance-domain defaults for backward compatibility.
+"""
+
+import re
+from typing import Any, Optional
+
+from dtr.models import DTRConfig
 from models.schemas import Chunk
 from utils.text_utils import clean_text, is_noise_text, strip_repeated_headers
 
 
-class ChunkerService:
-    SECTION_PATTERNS = [
-        ("waiting_period", r"\b(waiting period|pre-existing|ped|survival period)\b"),
-        ("exclusion", r"\b(exclusion|not covered|excluded|limitations|permanent exclusion)\b"),
-        ("coverage", r"\b(coverage|benefit|covered|sum insured|room rent|cashless)\b"),
-        ("claim_rule", r"\b(claim|documents required|intimation|settlement|deductible|co-pay|copay)\b"),
-        ("definition", r"\b(definition|means|interpretation)\b"),
-        ("renewal", r"\b(renewal|cancellation|termination|grace period)\b"),
-    ]
+# Default patterns used when no DTR config is provided (backward compat)
+_DEFAULT_SECTION_PATTERNS = [
+    ("waiting_period", r"\b(waiting period|pre-existing|ped|survival period)\b"),
+    ("exclusion", r"\b(exclusion|not covered|excluded|limitations|permanent exclusion)\b"),
+    ("coverage", r"\b(coverage|benefit|covered|sum insured|room rent|cashless)\b"),
+    ("claim_rule", r"\b(claim|documents required|intimation|settlement|deductible|co-pay|copay)\b"),
+    ("definition", r"\b(definition|means|interpretation)\b"),
+    ("renewal", r"\b(renewal|cancellation|termination|grace period)\b"),
+]
 
-    def chunk(self, pages: list[dict[str, Any]]) -> list[Chunk]:
+# Default high-risk sections (backward compat)
+_DEFAULT_HIGH_RISK_SECTIONS = {"exclusion", "waiting_period"}
+_DEFAULT_MEDIUM_RISK_TERMS = ["co-pay", "copay", "deductible", "sub-limit", "room rent", "not payable"]
+
+
+class ChunkerService:
+    def chunk(
+        self,
+        pages: list[dict[str, Any]],
+        config: Optional[DTRConfig] = None,
+    ) -> list[Chunk]:
+        """Chunk document pages into labeled sections.
+
+        When a DTR config is provided, section patterns and risk detection
+        are driven by the config. Otherwise falls back to insurance defaults.
+        """
+        section_patterns = self._build_section_patterns(config)
+        risk_patterns = config.risk_patterns if config else []
+
         raw_sections: list[tuple[str | None, str, int]] = []
         for page in pages:
             page_no = int(page.get("page", 1))
             text = clean_text(page.get("text", ""))
             if not text:
                 continue
-            raw_sections.extend(self._split_page(text, page_no))
+            raw_sections.extend(self._split_page(text, page_no, section_patterns))
 
         chunks: list[Chunk] = []
         for heading, text, page_no in raw_sections:
@@ -36,8 +61,10 @@ class ChunkerService:
                 if is_noise_text(part):
                     section_type = "noise"
                 else:
-                    section_type = self._section_type(f"{heading or ''}\n{part}")
-                risk_level = self._risk(section_type, part)
+                    section_type = self._section_type(
+                        f"{heading or ''}\n{part}", section_patterns
+                    )
+                risk_level = self._risk(section_type, part, config)
                 chunk = Chunk(
                     chunkIndex=len(chunks),
                     sectionType=section_type,
@@ -46,13 +73,41 @@ class ChunkerService:
                     text=part,
                     pageNumber=page_no,
                     riskLevel=risk_level,
-                    importance="low" if section_type == "noise" else ("critical" if risk_level == "high" else "normal"),
+                    importance=(
+                        "low"
+                        if section_type == "noise"
+                        else ("critical" if risk_level == "high" else "normal")
+                    ),
                     citationLabel=f"p.{page_no} c.{len(chunks) + 1}",
                 )
                 chunks.append(chunk)
         return chunks
 
-    def _split_page(self, text: str, page_no: int) -> list[tuple[str | None, str, int]]:
+    # ── Section patterns ──────────────────────────────────────────────────────
+
+    def _build_section_patterns(
+        self, config: Optional[DTRConfig]
+    ) -> list[tuple[str, str]]:
+        """Build regex patterns from DTR config or use defaults."""
+        if config and config.section_taxonomy:
+            patterns: list[tuple[str, str]] = []
+            for section_key, aliases in config.section_taxonomy.items():
+                if not aliases:
+                    continue
+                escaped = [re.escape(alias) for alias in aliases]
+                pattern = r"\b(" + "|".join(escaped) + r")\b"
+                patterns.append((section_key, pattern))
+            return patterns
+        return list(_DEFAULT_SECTION_PATTERNS)
+
+    # ── Page splitting ────────────────────────────────────────────────────────
+
+    def _split_page(
+        self,
+        text: str,
+        page_no: int,
+        section_patterns: list[tuple[str, str]],
+    ) -> list[tuple[str | None, str, int]]:
         lines = [line.strip() for line in text.splitlines() if line.strip()]
         if not lines:
             return []
@@ -62,7 +117,7 @@ class ChunkerService:
         current: list[str] = []
 
         for line in lines:
-            if self._looks_like_heading(line):
+            if self._looks_like_heading(line, section_patterns):
                 if current:
                     sections.append((current_heading, current))
                     current = []
@@ -75,16 +130,28 @@ class ChunkerService:
 
         if not sections:
             sections.append((None, lines))
-        return [(heading, clean_text("\n".join(content)), page_no) for heading, content in sections if content]
+        return [
+            (heading, clean_text("\n".join(content)), page_no)
+            for heading, content in sections
+            if content
+        ]
 
-    def _looks_like_heading(self, line: str) -> bool:
+    def _looks_like_heading(
+        self, line: str, section_patterns: list[tuple[str, str]]
+    ) -> bool:
         if len(line) > 140:
             return False
         if re.match(r"^(\d+(\.\d+)*|[A-Z])[\). -]+[A-Za-z]", line):
             return True
-        keywordish = any(re.search(pattern, line, re.I) for _, pattern in self.SECTION_PATTERNS)
-        upperish = sum(1 for ch in line if ch.isupper()) >= max(4, len(line.replace(" ", "")) // 2)
+        keywordish = any(
+            re.search(pattern, line, re.I) for _, pattern in section_patterns
+        )
+        upperish = sum(1 for ch in line if ch.isupper()) >= max(
+            4, len(line.replace(" ", "")) // 2
+        )
         return keywordish and upperish
+
+    # ── Text sizing ───────────────────────────────────────────────────────────
 
     def _fit_size(self, text: str, max_chars: int) -> list[str]:
         if len(text) <= max_chars:
@@ -102,18 +169,56 @@ class ChunkerService:
             parts.append(clean_text(current))
         return parts
 
-    def _section_type(self, text: str) -> str:
-        for section_type, pattern in self.SECTION_PATTERNS:
+    # ── Section classification ────────────────────────────────────────────────
+
+    def _section_type(
+        self, text: str, section_patterns: list[tuple[str, str]]
+    ) -> str:
+        for section_type, pattern in section_patterns:
             if re.search(pattern, text, re.I):
                 return section_type
         return "general"
 
-    def _risk(self, section_type: str, text: str) -> str:
+    # ── Risk detection ────────────────────────────────────────────────────────
+
+    def _risk(
+        self,
+        section_type: str,
+        text: str,
+        config: Optional[DTRConfig] = None,
+    ) -> str:
         t = text.lower()
         if section_type == "noise":
             return "low"
-        if section_type in {"exclusion", "waiting_period"}:
-            return "high"
-        if any(term in t for term in ["co-pay", "copay", "deductible", "sub-limit", "room rent", "not payable"]):
+
+        # DTR-driven risk: check if section matches a risk pattern
+        if config and config.risk_patterns:
+            for pattern in config.risk_patterns:
+                readable = pattern.replace("_", " ")
+                if readable in t:
+                    return "high"
+
+        # DTR-driven: sections that are naturally high-risk for this doc type
+        if config and config.section_taxonomy:
+            # Sections whose content tends to be adverse
+            high_risk_keys = {
+                k
+                for k in config.section_taxonomy
+                if any(
+                    term in k
+                    for term in [
+                        "exclusion", "default", "penalty", "risk",
+                        "liability", "termination", "covenant",
+                    ]
+                )
+            }
+            if section_type in high_risk_keys:
+                return "high"
+        else:
+            # Fallback: insurance defaults
+            if section_type in _DEFAULT_HIGH_RISK_SECTIONS:
+                return "high"
+
+        if any(term in t for term in _DEFAULT_MEDIUM_RISK_TERMS):
             return "medium"
         return "low"

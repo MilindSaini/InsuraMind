@@ -194,10 +194,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Insight card color borders */
-.insight-coverage { border-left: 3px solid #1B7A4E; }
-.insight-exclusion { border-left: 3px solid #D32F2F; }
-.insight-waiting { border-left: 3px solid #1565C0; }
-.insight-risk { border-left: 3px solid #C9A84C; }
+.insight-coverage, .insight-terms, .insight-identity, .insight-parties, .insight-covenants, .insight-valuation { border-left: 3px solid #1B7A4E; } /* Emerald */
+.insight-exclusion, .insight-default, .insight-liability, .insight-risk { border-left: 3px solid #D32F2F; } /* Red */
+.insight-waiting_period, .insight-waiting, .insight-prepayment, .insight-validity, .insight-confidential, .insight-redemption, .insight-anti_dilution { border-left: 3px solid #1565C0; } /* Accent / Blue */
+.insight-claim_rule, .insight-repayment, .insight-obligations, .insight-investment { border-left: 3px solid #8E24AA; } /* Purple */
+.insight-definition, .insight-security, .insight-address, .insight-termination, .insight-rating, .insight-rights { border-left: 3px solid #F57C00; } /* Orange */
+.insight-renewal, .insight-fees, .insight-authority, .insight-dispute, .insight-governance, .insight-liquidation, .insight-exit, .insight-vesting, .insight-general { border-left: 3px solid #00897B; } /* Teal */
 
 /* Entrance animations */
 .animate-enter {

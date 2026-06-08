@@ -14,6 +14,7 @@ class QueryRequest(BaseModel):
     documentId: str
     userId: str
     question: str = Field(min_length=1, max_length=1200)
+    docType: Optional[str] = None
 
 
 class Chunk(BaseModel):
@@ -24,6 +25,8 @@ class Chunk(BaseModel):
     text: str
     pageNumber: Optional[int] = None
     riskLevel: str = "low"
+    riskScore: Optional[float] = None
+    riskReason: Optional[str] = None
     importance: str = "normal"
     citationLabel: Optional[str] = None
 

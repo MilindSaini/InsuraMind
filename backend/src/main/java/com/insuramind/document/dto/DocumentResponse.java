@@ -12,11 +12,16 @@ public record DocumentResponse(
         long sizeBytes,
         String status,
         String documentType,
+        String documentTypeDisplayName,
         String processingMessage,
         Instant createdAt,
         Instant updatedAt
 ) {
     public static DocumentResponse from(InsuranceDocument document) {
+        return from(document, null);
+    }
+
+    public static DocumentResponse from(InsuranceDocument document, String displayName) {
         return new DocumentResponse(
                 document.getId(),
                 document.getFileName(),
@@ -24,6 +29,7 @@ public record DocumentResponse(
                 document.getSizeBytes(),
                 document.getStatus().name(),
                 document.getDocumentType(),
+                displayName,
                 document.getProcessingMessage(),
                 document.getCreatedAt(),
                 document.getUpdatedAt()

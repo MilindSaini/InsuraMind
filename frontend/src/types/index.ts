@@ -29,6 +29,8 @@ export type Chunk = {
   text: string;
   pageNumber?: number;
   riskLevel: string;
+  riskScore?: number;
+  riskReason?: string;
   importance: string;
   citationLabel?: string;
 };
@@ -50,6 +52,9 @@ export type InsightResponse = {
   waitingPeriods: Chunk[];
   riskAlerts: Chunk[];
   allChunks: Chunk[];
+  docType?: string;
+  displayName?: string;
+  sections?: Record<string, Chunk[]>;
 };
 
 export type Citation = {

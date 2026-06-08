@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.AuthenticationException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -26,6 +28,11 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .orElse("Invalid request");
         return error(HttpStatus.BAD_REQUEST, message, request.getRequestURI());
+    }
+
+    @ExceptionHandler({AccessDeniedException.class, AuthenticationException.class})
+    public void handleSecurityException(RuntimeException ex) {
+        throw ex;
     }
 
     @ExceptionHandler(Exception.class)

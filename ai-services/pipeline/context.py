@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from models.schemas import Chunk, ExtractedEntity, InternalIngestPayload
+
+if TYPE_CHECKING:
+    from dtr.models import DTRConfig
 
 
 @dataclass
@@ -22,11 +25,18 @@ class PipelineContext:
 
     # ── Stage outputs (populated progressively) ──────────────────────────────
     local_path: Optional[str] = None
+    docling_doc: Any = field(default=None, repr=False)
     pages: list[dict[str, Any]] = field(default_factory=list)
     full_text: str = ""
-    document_type: str = "policy"
+    document_type: str = "insurance_policy"
+    sections: list[dict[str, Any]] = field(default_factory=list)
+    clauses: list[dict[str, Any]] = field(default_factory=list)
+    insights: list[dict[str, Any]] = field(default_factory=list)
     chunks: list[Chunk] = field(default_factory=list)
     entities: list[ExtractedEntity] = field(default_factory=list)
+
+    # ── DTR config (loaded by ClassifierStage, consumed by all downstream) ──
+    dtr_config: Optional["DTRConfig"] = field(default=None, repr=False)
 
     # ── Diagnostics ───────────────────────────────────────────────────────────
     stage_timings: dict[str, float] = field(default_factory=dict)

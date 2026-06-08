@@ -47,6 +47,10 @@ class Settings(BaseModel):
     embedding_dim: int = int(os.getenv("EMBEDDING_DIM", "1024"))
     fallback_index_path: str = os.getenv("FALLBACK_INDEX_PATH", "storage/vector_index.json")
 
+    # DTR (Document Type Registry)
+    dtr_cache_ttl_seconds: int = int(os.getenv("DTR_CACHE_TTL_SECONDS", "3600"))
+    dtr_enable_llm_extraction: bool = os.getenv("DTR_ENABLE_LLM_EXTRACTION", "false").lower() == "true"
+
 
 @lru_cache
 def get_settings() -> Settings:

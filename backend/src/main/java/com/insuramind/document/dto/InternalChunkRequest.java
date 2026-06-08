@@ -8,6 +8,8 @@ public record InternalChunkRequest(
         String text,
         Integer pageNumber,
         String riskLevel,
+        Float riskScore,
+        String riskReason,
         String importance,
         String citationLabel
 ) {}

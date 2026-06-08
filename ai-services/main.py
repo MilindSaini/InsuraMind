@@ -2,8 +2,9 @@
 
 Startup sequence:
 1. Configure structured logging.
-2. Start the Redis Streams document pipeline worker (durable, at-least-once).
-3. Include HTTP routers (health, process, query).
+2. Load DTR configs from backend API (falls back to seeds if unavailable).
+3. Start the Redis Streams document pipeline worker (durable, at-least-once).
+4. Include HTTP routers (health, process, query, dtr).
 
 The /process endpoint still exists for backward-compatibility with the Spring Boot
 AiServiceClient, but it now publishes to Redis Streams instead of running inline.
@@ -19,6 +20,7 @@ from pipeline.worker import get_worker
 from routers.health import router as health_router
 from routers.process import router as process_router
 from routers.query import router as query_router
+from routers.dtr import router as dtr_router
 
 configure_logging()
 log = get_logger("insuramind.main")
@@ -26,6 +28,15 @@ log = get_logger("insuramind.main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Load DTR configs on startup
+    try:
+        from dtr.registry import get_registry
+        registry = get_registry()
+        await registry.load_all()
+        log.info("dtr.startup_loaded")
+    except Exception as exc:
+        log.warning("dtr.startup_load_failed", error=str(exc))
+
     worker = get_worker()
     await worker.start()
     log.info("app.started")
@@ -36,7 +47,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="InsuraMind AI Service",
-    version="0.2.0",
+    version="0.3.0",
     lifespan=lifespan,
 )
 
@@ -51,6 +62,7 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(process_router)
 app.include_router(query_router)
+app.include_router(dtr_router)
 
 
 if __name__ == "__main__":
