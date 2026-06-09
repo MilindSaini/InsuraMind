@@ -42,6 +42,7 @@ class Settings(BaseModel):
         "GEMINI_VERIFIER_MODEL",
         os.getenv("GEMINI_FAST_MODEL", "gemini-2.5-flash"),
     )
+    gemini_batch_size: int = int(os.getenv("GEMINI_BATCH_SIZE", "10"))
 
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-large-en-v1.5")
     embedding_dim: int = int(os.getenv("EMBEDDING_DIM", "1024"))

@@ -187,10 +187,45 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Chat bubble shapes */
 .bubble-user {
-  border-radius: 12px 4px 12px 12px;
+  border-radius: 12px 0px 12px 12px;
+  position: relative;
 }
+.bubble-user::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -6px;
+  width: 0;
+  height: 0;
+  border-top: 12px solid #1565C0; /* Accent color */
+  border-right: 12px solid transparent;
+}
+
 .bubble-ai {
-  border-radius: 4px 12px 12px 12px;
+  border-radius: 0px 12px 12px 12px;
+  position: relative;
+}
+.bubble-ai::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: -7px;
+  width: 0;
+  height: 0;
+  border-top: 12px solid #E2E8F0; /* Border color */
+  border-left: 12px solid transparent;
+  z-index: 0;
+}
+.bubble-ai::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -5px;
+  width: 0;
+  height: 0;
+  border-top: 10px solid #FFFFFF; /* Background color */
+  border-left: 10px solid transparent;
+  z-index: 1;
 }
 
 /* Insight card color borders */
@@ -247,18 +282,17 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Suggestion chip */
 .suggestion-chip {
-  height: 32px;
+  min-height: 32px;
   background: #F8F9FC;
   border: 1px solid #E2E8F0;
-  border-radius: 9999px;
+  border-radius: 16px;
   font-size: 0.8125rem;
   font-weight: 500;
-  padding-inline: 14px;
+  padding: 8px 14px;
   transition: all 200ms ease;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  white-space: nowrap;
 }
 .suggestion-chip:hover {
   border-color: #C9A84C;

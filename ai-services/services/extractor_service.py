@@ -62,17 +62,18 @@ class ExtractorService:
 
     def extract(
         self,
-        sections: list[dict],
+        clauses: list[dict],
         config: Optional[DTRConfig] = None,
     ) -> list[ExtractedEntity]:
-        """Extract entities from sections using DTR config or legacy patterns."""
+        """Extract entities from clauses using DTR config or legacy patterns."""
         found: list[ExtractedEntity] = []
         seen: set[tuple[str, str]] = set()
 
         patterns = self._build_patterns(config)
 
-        for section in sections:
-            text = section.get("text", "")
+        for clause in clauses:
+            text = clause.get("value", "")
+            section = clause.get("source_section", {})
             self._regex_extract(found, seen, text, section, patterns)
             if not config:
                 # Legacy domain terms (insurance only)

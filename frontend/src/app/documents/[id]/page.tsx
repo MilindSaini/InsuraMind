@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, RefreshCw, Download, Share2, Shield, Wifi } from "lucide-react";
+import { ArrowLeft, RefreshCw, Download, Share2, Shield, Wifi, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { AuthGuard } from "@/components/auth-guard";
@@ -116,53 +116,56 @@ export default function DocumentPage() {
             </section>
 
             {/* Right: Tabbed Sidebar (Insights + Chat merged) */}
-            <aside className="flex flex-col overflow-hidden rounded-card border border-line bg-white">
-              {/* Tab headers */}
-              <div className="flex border-b border-border-subtle">
-                <button
-                  onClick={() => setActiveTab("insights")}
-                  className={`flex-1 py-3 text-center text-sm font-semibold transition-all duration-200 ${
-                    activeTab === "insights"
-                      ? "border-b-2 border-gold text-gold"
-                      : "text-text-muted hover:text-text-primary hover:bg-panel"
-                  }`}
-                >
-                  <span className="flex items-center justify-center gap-1.5">
-                    <Shield className="h-4 w-4" />
-                    Insights
-                  </span>
-                </button>
-                <button
-                  onClick={() => setActiveTab("chat")}
-                  className={`flex-1 py-3 text-center text-sm font-semibold transition-all duration-200 ${
-                    activeTab === "chat"
-                      ? "border-b-2 border-gold text-gold"
-                      : "text-text-muted hover:text-text-primary hover:bg-panel"
-                  }`}
-                >
-                  <span className="flex items-center justify-center gap-1.5">
-                    💬 Policy Chat
-                    <span className="h-2 w-2 rounded-full bg-emerald" />
-                  </span>
-                </button>
-              </div>
+            <div className="relative h-full">
+              <aside className="absolute inset-0 flex flex-col overflow-hidden rounded-card border border-line bg-white">
+                {/* Tab headers */}
+                <div className="flex border-b border-border-subtle">
+                  <button
+                    onClick={() => setActiveTab("insights")}
+                    className={`flex-1 py-3 text-center text-sm font-semibold transition-all duration-200 ${
+                      activeTab === "insights"
+                        ? "border-b-2 border-gold text-gold"
+                        : "text-text-muted hover:text-text-primary hover:bg-panel"
+                    }`}
+                  >
+                    <span className="flex items-center justify-center gap-1.5">
+                      <Shield className="h-4 w-4" />
+                      Insights
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab("chat")}
+                    className={`flex-1 py-3 text-center text-sm font-semibold transition-all duration-200 ${
+                      activeTab === "chat"
+                        ? "border-b-2 border-gold text-gold"
+                        : "text-text-muted hover:text-text-primary hover:bg-panel"
+                    }`}
+                  >
+                    <span className="flex items-center justify-center gap-1.5">
+                      <Sparkles className="h-4 w-4" />
+                      AI Assistant
+                      <span className="h-2 w-2 rounded-full bg-emerald" />
+                    </span>
+                  </button>
+                </div>
 
-              {/* Tab content */}
-              <div className="flex-1 overflow-auto">
-                {activeTab === "insights" ? (
-                  <div className="p-5">
-                    <InsightPanel insights={insights.data} />
-                  </div>
-                ) : (
-                  <ChatPanel
-                    documentId={documentId}
-                    disabled={!ready}
-                    onAnswer={setLastAnswer}
-                    entities={insights.data?.entities || []}
-                  />
-                )}
-              </div>
-            </aside>
+                {/* Tab content */}
+                <div className="flex-1 overflow-auto">
+                  {activeTab === "insights" ? (
+                    <div className="p-5">
+                      <InsightPanel insights={insights.data} />
+                    </div>
+                  ) : (
+                    <ChatPanel
+                      documentId={documentId}
+                      disabled={!ready}
+                      onAnswer={setLastAnswer}
+                      entities={insights.data?.entities || []}
+                    />
+                  )}
+                </div>
+              </aside>
+            </div>
           </div>
         </div>
       </AppShell>

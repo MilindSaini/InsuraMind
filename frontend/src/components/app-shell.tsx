@@ -19,14 +19,13 @@ import { logout, currentUser } from "@/services/api";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/documents", label: "Documents", icon: FileText },
-  { href: "/documents", label: "AI Assistant", icon: Sparkles },
-  { href: "/documents", label: "Claims", icon: Scale },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const user = currentUser();
   const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
 
   const initials = user?.fullName
     ? user.fullName
@@ -42,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* ── Mobile top bar ── */}
       <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-line bg-white/90 px-4 backdrop-blur-xl lg:hidden">
         <button
-          onClick={() => setSidebarOpen(true)}
+          onClick={() => setMobileSidebarOpen(true)}
           className="inline-flex h-10 w-10 items-center justify-center rounded-input text-text-secondary hover:bg-panel"
           aria-label="Open menu"
         >
@@ -58,21 +57,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* ── Mobile sidebar overlay ── */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setSidebarOpen(false)}>
+      {mobileSidebarOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" onClick={() => setMobileSidebarOpen(false)}>
           <div className="absolute inset-0 bg-navy/40 backdrop-blur-sm" />
         </div>
       )}
 
       {/* ── Sidebar ── */}
       <aside
-        className={`fixed top-0 left-0 z-50 flex h-screen w-sidebar flex-col border-r border-line bg-gold-surface transition-transform duration-300 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`fixed top-0 left-0 z-50 flex h-screen w-sidebar flex-col border-r border-line bg-gold-surface transition-transform duration-300 ${
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+        } ${desktopSidebarOpen ? "lg:translate-x-0" : "lg:-translate-x-full"}`}
       >
         {/* Close button (mobile) */}
         <button
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setMobileSidebarOpen(false)}
           className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full text-text-muted hover:bg-panel lg:hidden"
           aria-label="Close menu"
         >
@@ -109,7 +108,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.label}
                 href={item.href}
-                onClick={() => setSidebarOpen(false)}
+                onClick={() => setMobileSidebarOpen(false)}
                 className={`flex items-center gap-3 rounded-input px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
                   isActive
                     ? "nav-active bg-gold-surface text-gold"
@@ -127,7 +126,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="space-y-1 border-t border-line px-3 py-4">
           <button
             onClick={() => {
-              setSidebarOpen(false);
+              setMobileSidebarOpen(false);
             }}
             className="flex w-full items-center gap-3 rounded-input px-3 py-2.5 text-sm font-medium text-text-secondary transition-all hover:bg-panel hover:text-text-primary"
           >
@@ -149,9 +148,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Main content area ── */}
-      <div className="lg:ml-sidebar">
+      <div className={`flex min-h-screen flex-col transition-all duration-300 ${desktopSidebarOpen ? "lg:ml-sidebar" : "lg:ml-0"}`}>
         {/* Desktop top nav */}
-        <header className="sticky top-0 z-20 hidden h-16 items-center justify-end border-b border-line bg-white/90 px-6 backdrop-blur-xl lg:flex">
+        <header className="sticky top-0 z-20 hidden h-16 items-center justify-between border-b border-line bg-white/90 px-6 backdrop-blur-xl lg:flex">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setDesktopSidebarOpen(!desktopSidebarOpen)}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-input text-text-secondary hover:bg-panel transition-colors"
+              aria-label="Toggle sidebar"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
+          </div>
           <div className="flex items-center gap-3">
             {user && <span className="text-sm text-text-secondary">{user.fullName}</span>}
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald text-xs font-bold text-white">
@@ -160,10 +168,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        <main className="mx-auto max-w-[1280px] px-4 py-6 lg:px-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1280px] flex-1 px-4 py-6 lg:px-6">{children}</main>
 
         {/* Footer */}
-        <footer className="border-t border-line bg-navy py-4">
+        <footer className="mt-auto border-t border-line bg-navy py-4">
           <div className="mx-auto flex max-w-[1280px] flex-wrap items-center justify-between gap-4 px-4 lg:px-6">
             <div className="flex items-center gap-2">
               <Shield className="h-4 w-4 text-gold" />

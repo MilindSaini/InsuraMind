@@ -15,10 +15,10 @@ class ChunkBuilderService:
                 parentHeading=sec.get("heading"),
                 text=text,
                 pageNumber=sec.get("page_number"),
-                riskLevel="low",
-                riskScore=0.0,
-                riskReason="",
-                importance="normal",
+                riskLevel=item.get("risk_level", "low"),
+                riskScore=item.get("risk_score", 0.0),
+                riskReason=item.get("risk_reason", ""),
+                importance="critical" if item.get("risk_level") == "high" else "normal",
                 citationLabel=f"p.{sec.get('page_number', 1)} c.{i + 1}"
             )
             chunks.append(chunk)

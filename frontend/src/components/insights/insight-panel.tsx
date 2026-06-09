@@ -24,8 +24,8 @@ export function InsightPanel({ insights }: { insights?: InsightResponse }) {
         <Badge variant="gold">AI GENERATED</Badge>
       </div>
 
-      {/* Extracted Facts */}
-      <EntityCard entities={insights.entities} />
+      {/* Risk Alerts */}
+      <RiskAlertCard chunks={insights.riskAlerts} />
 
       {/* Dynamic Sections */}
       {insights.sections && Object.keys(insights.sections).length > 0 ? (
@@ -86,8 +86,8 @@ export function InsightPanel({ insights }: { insights?: InsightResponse }) {
         </>
       )}
 
-      {/* Risk Alerts */}
-      <RiskAlertCard chunks={insights.riskAlerts} />
+      {/* Extracted Facts */}
+      <EntityCard entities={insights.entities} />
     </div>
   );
 }
@@ -101,11 +101,11 @@ function EntityCard({ entities }: { entities: Entity[] }) {
           <p className="text-body-sm text-text-muted">No structured facts extracted yet.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-4 max-h-[300px] overflow-y-auto pr-2">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[240px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-line scrollbar-track-transparent">
           {entities.map((entity) => (
             <div key={entity.id} className="flex flex-col rounded-input border border-border-subtle bg-surface-secondary p-3">
-              <p className="text-caption font-semibold uppercase text-text-muted mb-1">{entity.entityType.replaceAll("_", " ")}</p>
-              <p className="text-sm font-medium text-text-primary">{entity.entityValue}</p>
+              <p className="text-caption font-semibold uppercase text-text-muted mb-1 line-clamp-2">{entity.entityType.replaceAll("_", " ")}</p>
+              <p className="text-sm font-medium text-text-primary whitespace-normal">{entity.entityValue}</p>
             </div>
           ))}
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, FileText, Plus, Minus } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { getDocumentPreviewBlob } from "@/services/api";
 import type { Chunk, Citation } from "@/types";
@@ -144,39 +144,60 @@ export function PdfViewer({
           <div className="mx-2 h-5 w-px bg-line" />
 
           {/* Page navigation */}
-          <button
-            className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel disabled:opacity-40"
-            onClick={() => setSelectedPage((page) => previousPage(page, highlightPages))}
-            disabled={highlightPages.length === 0 || selectedPage <= (highlightPages[0] ?? 1)}
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="flex items-center gap-2 text-body-sm font-medium">
-            <span>Page</span>
-            <select
-              value={selectedPage}
-              onChange={(event) => setSelectedPage(Number(event.target.value))}
-              className="h-8 rounded-input border border-line bg-white px-2 text-sm outline-none focus:border-gold"
+          <div className="flex items-center gap-1">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel disabled:opacity-40"
+              onClick={() => setSelectedPage((p) => Math.max(1, p - 1))}
+              disabled={selectedPage <= 1}
+              aria-label="Previous page"
+              title="Previous Page"
             >
-              {pageOptions(highlightPages, selectedPage).map((page) => (
-                <option key={page} value={page}>
-                  {page}
-                </option>
-              ))}
-            </select>
-            {highlightPages.length > 0 && (
-              <span className="text-text-muted">of {highlightPages[highlightPages.length - 1]}</span>
-            )}
+              <Minus className="h-4 w-4" />
+            </button>
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel disabled:opacity-40"
+              onClick={() => setSelectedPage((page) => previousPage(page, highlightPages))}
+              disabled={highlightPages.length === 0 || selectedPage <= (highlightPages[0] ?? 1)}
+              aria-label="Previous highlight"
+              title="Previous Highlight"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel disabled:opacity-40"
-            onClick={() => setSelectedPage((page) => nextPage(page, highlightPages))}
-            disabled={highlightPages.length === 0 || selectedPage >= highlightPages[highlightPages.length - 1]}
-            aria-label="Next page"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
+
+          <div className="flex items-center gap-2 text-body-sm font-medium mx-2">
+            <span>Page</span>
+            <input
+              type="number"
+              min={1}
+              value={selectedPage}
+              onChange={(event) => {
+                const val = parseInt(event.target.value);
+                if (!isNaN(val) && val > 0) setSelectedPage(val);
+              }}
+              className="h-8 w-16 text-center rounded-input border border-line bg-white px-2 text-sm outline-none focus:border-gold"
+            />
+          </div>
+
+          <div className="flex items-center gap-1">
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel disabled:opacity-40"
+              onClick={() => setSelectedPage((page) => nextPage(page, highlightPages))}
+              disabled={highlightPages.length === 0 || selectedPage >= highlightPages[highlightPages.length - 1]}
+              aria-label="Next highlight"
+              title="Next Highlight"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <button
+              className="flex h-8 w-8 items-center justify-center rounded-input border border-line text-text-muted hover:bg-panel disabled:opacity-40"
+              onClick={() => setSelectedPage((p) => p + 1)}
+              aria-label="Next page"
+              title="Next Page"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -214,11 +235,11 @@ export function PdfViewer({
             No cited or high-risk clauses are mapped to page {selectedPage}.
           </p>
         ) : (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2 max-h-[240px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-line scrollbar-track-transparent">
             {pageItems.map((item) => (
               <article
                 key={item.id}
-                className={`rounded-input border p-3 ${
+                className={`rounded-input border p-3 insight-${item.sectionType || 'general'} ${
                   item.source === "answer"
                     ? "border-accent/20 bg-accent-surface"
                     : "border-line bg-surface-secondary"

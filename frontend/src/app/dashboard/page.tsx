@@ -53,16 +53,24 @@ export default function DashboardPage() {
                   You have {analyzedDocs} documents analyzed
                 </p>
               </div>
-              <button
-                onClick={() => {
-                  const el = document.getElementById("upload-zone");
-                  el?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="btn-secondary !border-gold-light/40 !text-gold-light hover:!bg-gold-light/10 flex items-center gap-2"
-              >
-                <Upload className="h-5 w-5" />
-                Upload new document
-              </button>
+              <div className="group relative">
+                {/* Glowing aura effect */}
+                <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-gold to-emerald opacity-20 blur transition duration-1000 group-hover:opacity-60 group-hover:duration-200"></div>
+                
+                <button
+                  onClick={() => {
+                    const el = document.getElementById("upload-zone");
+                    el?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="relative flex items-center gap-3 overflow-hidden rounded-full bg-navy px-8 py-3.5 font-bold text-gold ring-1 ring-gold/30 transition-all duration-300 hover:scale-105 hover:ring-gold/60 hover:shadow-[0_0_20px_rgba(201,168,76,0.3)]"
+                >
+                  {/* Sweep shine animation */}
+                  <span className="absolute left-0 top-0 h-full w-full -translate-x-[150%] bg-gradient-to-r from-transparent via-gold/20 to-transparent transition-transform duration-700 ease-in-out group-hover:translate-x-[150%]"></span>
+                  
+                  <Upload className="relative z-10 h-5 w-5 transition-transform duration-300 group-hover:-translate-y-0.5" />
+                  <span className="relative z-10 tracking-wide">Analyze Document</span>
+                </button>
+              </div>
             </div>
             {/* Ambient gradient overlay */}
             <div

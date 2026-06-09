@@ -38,24 +38,39 @@ class RefinerService:
             important_sections.update(config.section_taxonomy.keys())
 
         # Filter chunks that need refinement
-        tasks = []
+        important_chunks = []
         for chunk in chunks:
             if chunk.sectionType == "noise":
                 continue
             if chunk.sectionType in important_sections or chunk.riskLevel == "high" or chunk.importance == "critical":
-                tasks.append(self._refine_chunk(chunk))
+                important_chunks.append(chunk)
 
-        if not tasks:
+        if not important_chunks:
             return chunks
 
-        # Execute concurrently
-        refined_chunks = await asyncio.gather(*tasks, return_exceptions=True)
+        batch_size = self.settings.gemini_batch_size
+        tasks = []
+        for i in range(0, len(important_chunks), batch_size):
+            batch = important_chunks[i:i + batch_size]
+            tasks.append(self._refine_batch(batch))
 
-        # Apply successful refinements
+        # Execute concurrently
+        refined_batches = await asyncio.gather(*tasks, return_exceptions=True)
+
         refined_map = {}
-        for res in refined_chunks:
-            if isinstance(res, Chunk):
-                refined_map[res.chunkIndex] = res
+        failed_batches = 0
+        
+        for res in refined_batches:
+            if isinstance(res, list):
+                for chunk in res:
+                    refined_map[chunk.chunkIndex] = chunk
+            else:
+                failed_batches += 1
+                log.warning("refiner.batch_failed", error=str(res))
+
+        # Failure threshold protection: if > 50% batches fail, log a severe warning
+        if failed_batches > 0 and failed_batches >= len(tasks) / 2:
+            log.error("refiner.high_failure_rate", failed=failed_batches, total=len(tasks))
 
         for i, chunk in enumerate(chunks):
             if chunk.chunkIndex in refined_map:
@@ -63,44 +78,48 @@ class RefinerService:
 
         return chunks
 
-    async def _refine_chunk(self, chunk: Chunk) -> Chunk:
+    async def _refine_batch(self, batch: list[Chunk]) -> list[Chunk]:
         from google.genai import types
         from pydantic import BaseModel
         import json
         import copy
 
-        class RefinedResult(BaseModel):
+        class RefinedItem(BaseModel):
+            chunkIndex: int
             summary: str
 
+        class RefinedBatchResult(BaseModel):
+            items: list[RefinedItem]
+
+        clauses_text = ""
+        for chunk in batch:
+            clauses_text += f"ID: {chunk.chunkIndex}\nHeading: {chunk.heading}\nText: {chunk.text}\n\n"
+
         prompt = (
-            f"You are a professional document analyst. Review the following clause extracted from a document.\n\n"
-            f"Clause Heading: {chunk.heading}\n"
-            f"Clause Value/Text: {chunk.text}\n\n"
+            f"You are a professional document analyst. Review the following clauses extracted from a document.\n\n"
+            f"{clauses_text}"
             f"Task:\n"
-            f"1. Refine the clause value into a clear, concise, and grammatically correct summary sentence.\n"
-            f"2. Ensure the information is complete and unambiguous.\n"
-            f"3. Do NOT add new information that is not in the text.\n\n"
-            f"Return ONLY a JSON object with a 'summary' key containing the refined text."
+            f"1. For each clause, refine the text into a clear, concise, and grammatically correct summary sentence.\n"
+            f"2. Ensure the information is complete and unambiguous. Do NOT add new information.\n"
+            f"3. Return the results matching the provided JSON schema, using the exact ID as 'chunkIndex'.\n"
         )
 
         try:
-            # We must use asyncio.to_thread because client.models.generate_content is synchronous
             message = await asyncio.to_thread(
                 self.client.models.generate_content,
                 model=self.settings.gemini_fast_model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     temperature=0.1,
-                    max_output_tokens=300,
+                    max_output_tokens=1024,
                     response_mime_type="application/json",
-                    response_schema=RefinedResult,
+                    response_schema=RefinedBatchResult,
                 ),
             )
             text = getattr(message, "text", None) or ""
             if not text:
-                return chunk
+                return batch
             
-            # Clean up potential markdown formatting
             text = text.strip()
             if text.startswith("```json"):
                 text = text[7:]
@@ -111,10 +130,19 @@ class RefinerService:
             text = text.strip()
             
             data = json.loads(text)
-            new_chunk = copy.deepcopy(chunk)
-            if data.get("summary"):
-                new_chunk.text = data["summary"].strip()
-            return new_chunk
+            items = data.get("items", [])
+            summary_map = {item.get("chunkIndex"): item.get("summary") for item in items if isinstance(item, dict)}
+            
+            new_batch = []
+            for chunk in batch:
+                summary = summary_map.get(chunk.chunkIndex)
+                if summary:
+                    new_chunk = copy.deepcopy(chunk)
+                    new_chunk.text = summary.strip()
+                    new_batch.append(new_chunk)
+                else:
+                    new_batch.append(chunk)
+            return new_batch
         except Exception as exc:
-            log.warning("refiner.chunk_failed", chunk_index=chunk.chunkIndex, error=str(exc))
-            return chunk
+            log.warning("refiner.batch_process_failed", error=str(exc))
+            return batch

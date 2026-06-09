@@ -203,7 +203,7 @@ class RiskTaggerStage(BaseStage):
 
     async def execute(self, ctx: PipelineContext) -> PipelineContext:
         try:
-            ctx.chunks = await self._service.tag(ctx.chunks)
+            ctx.clauses = await self._service.tag(ctx.clauses)
             log.info("risk_tagger.ok", document_id=ctx.document_id)
             return ctx
         except Exception as exc:
@@ -224,7 +224,7 @@ class EntityExtractorStage(BaseStage):
         try:
             import asyncio
             entities = await asyncio.to_thread(
-                self._extractor.extract, ctx.sections, ctx.dtr_config
+                self._extractor.extract, ctx.clauses, ctx.dtr_config
             )
             ctx.entities = entities
             log.info("extract.ok", document_id=ctx.document_id, entities=len(entities))
@@ -283,10 +283,10 @@ PIPELINE_STAGES: list[type[BaseStage]] = [
     ClassifierStage,
     SectionExtractorStage,
     ClauseExtractorStage,
-    ChunkBuilderStage,
-    InsightRefinerStage,
     RiskTaggerStage,
     EntityExtractorStage,
+    ChunkBuilderStage,
+    InsightRefinerStage,
     VectorIndexStage,
     BackendCallbackStage,
 ]

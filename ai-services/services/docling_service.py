@@ -7,7 +7,12 @@ from docling.datamodel.base_models import InputFormat
 class DoclingService:
     """Service to extract structured document blocks using Docling."""
     def __init__(self):
-        pipeline_options = PdfPipelineOptions()
+        pipeline_options = PdfPipelineOptions(
+            layout_batch_size=1,
+            ocr_batch_size=1,
+            do_picture_description=False,
+            generate_picture_images=False
+        )
         # Limit concurrency to prevent std::bad_alloc on large PDFs
         pipeline_options.accelerator_options = AcceleratorOptions(num_threads=1)
         

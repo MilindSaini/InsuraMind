@@ -104,7 +104,7 @@ export default function AllDocumentsPage() {
           </div>
 
           {/* Document list */}
-          <div className="space-y-3">
+          <div className="space-y-3 pb-24">
             {filtered.length === 0 ? (
               <div className="rounded-card border border-line bg-white p-12 text-center">
                 <FileText className="mx-auto h-12 w-12 text-text-muted/40" />
@@ -114,7 +114,9 @@ export default function AllDocumentsPage() {
               filtered.map((doc) => (
                 <div
                   key={doc.id}
-                  className="group relative flex items-center gap-4 rounded-card border border-line bg-white p-4 transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5"
+                  className={`group relative flex items-center gap-4 rounded-card border border-line bg-white p-4 transition-all duration-200 hover:shadow-card-hover hover:-translate-y-0.5 ${
+                    menuOpenId === doc.id ? "z-40" : "z-0 hover:z-10"
+                  }`}
                 >
                   {/* File icon */}
                   <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-input ${fileIconBg(doc)}`}>
@@ -192,7 +194,7 @@ export default function AllDocumentsPage() {
           />
           <button
             onClick={() => inputRef.current?.click()}
-            className="fixed bottom-6 right-6 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-emerald text-white shadow-lg transition-all duration-200 hover:bg-emerald-light hover:shadow-xl hover:-translate-y-1"
+            className="fixed bottom-6 right-4 z-20 flex h-14 w-14 items-center justify-center rounded-full bg-emerald text-white shadow-lg transition-all duration-200 hover:bg-emerald-light hover:shadow-xl hover:-translate-y-1"
             aria-label="Upload document"
           >
             <Plus className="h-6 w-6" />
