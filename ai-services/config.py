@@ -52,6 +52,17 @@ class Settings(BaseModel):
     dtr_cache_ttl_seconds: int = int(os.getenv("DTR_CACHE_TTL_SECONDS", "3600"))
     dtr_enable_llm_extraction: bool = os.getenv("DTR_ENABLE_LLM_EXTRACTION", "false").lower() == "true"
 
+    # Confidence gate — skip LLM when extraction confidence is high enough
+    confidence_skip_threshold: float = float(os.getenv("CONFIDENCE_SKIP_THRESHOLD", "0.7"))
+    extractor_version: str = os.getenv("EXTRACTOR_VERSION", "v1")
+
+    # Clause cache (Redis hash map)
+    clause_cache_ttl_seconds: int = int(os.getenv("CLAUSE_CACHE_TTL", "604800"))  # 7 days
+
+    # Section parallel processing
+    section_timeout_seconds: int = int(os.getenv("SECTION_TIMEOUT", "120"))
+    max_section_workers: int = int(os.getenv("MAX_SECTION_WORKERS", "8"))
+
 
 @lru_cache
 def get_settings() -> Settings:

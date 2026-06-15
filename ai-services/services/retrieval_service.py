@@ -166,7 +166,7 @@ class RetrievalService:
                 pageNumber=row.get("pageNumber"),
                 sectionType=row.get("sectionType", "general"),
                 heading=row.get("parentHeading") or row.get("heading"),
-                text=row.get("text", "")[:1200],
+                text=row.get("text", "")[:2000],
                 score=float(row.get("score", 0.0)),
             )
             for row in rows

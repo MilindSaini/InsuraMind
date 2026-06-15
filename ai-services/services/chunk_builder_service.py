@@ -6,7 +6,9 @@ class ChunkBuilderService:
         chunks = []
         for i, item in enumerate(clauses):
             sec = item.get("source_section", {})
-            text = item.get("value", "")
+            # Use full_text when available (complete clause content),
+            # falling back to value (which may be a summary/truncated)
+            text = item.get("full_text", item.get("value", ""))
             
             chunk = Chunk(
                 chunkIndex=i,

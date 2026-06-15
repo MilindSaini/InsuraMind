@@ -39,6 +39,35 @@ class ExtractedEntity(BaseModel):
     sourceChunkIndex: Optional[int] = None
 
 
+class StructuredClause(BaseModel):
+    """A fully extracted clause with confidence and provenance metadata."""
+    clause_hash: str
+    clause_type: str  # Dynamic — matches DTR section_taxonomy keys
+    title: str
+    value: str
+    entities: List[ExtractedEntity] = []
+    confidence: float  # overall extraction confidence (0.0–1.0)
+    extraction_method: str  # "rules_spacy", "llm", "cache"
+    risk_level: str = "low"
+    risk_score: float = 0.0
+    risk_reason: str = ""
+    source_section: dict = {}
+
+
+class AggregatorResult(BaseModel):
+    """Document-level aggregation — fully DTR-driven.
+
+    section_cards is keyed by the DTR section_taxonomy keys.
+    For insurance_policy: {"coverage": [...], "exclusion": [...], ...}
+    For loan_agreement:   {"terms": [...], "repayment": [...], ...}
+    Any new doc type added to DTR automatically gets its own card categories.
+    """
+    document_summary: str = ""
+    section_cards: dict = {}       # section_key → list of card dicts
+    risk_summary: dict = {}        # aggregated risk across all sections
+    entity_summary: dict = {}      # entity_name → extracted value (from entity_schema)
+
+
 class Citation(BaseModel):
     citationLabel: Optional[str] = None
     pageNumber: Optional[int] = None
@@ -63,3 +92,6 @@ class InternalIngestPayload(BaseModel):
     message: str = "Document processed"
     chunks: List[Chunk]
     entities: List[ExtractedEntity]
+    # DTR-driven aggregator output (single JSONB-compatible field)
+    aggregationResult: dict = {}
+

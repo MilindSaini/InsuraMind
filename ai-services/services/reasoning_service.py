@@ -150,7 +150,7 @@ class ReasoningService:
     ) -> str:
         evidence = "\n\n".join(
             f"[{row.get('citationLabel') or 'source'} | page {row.get('pageNumber')}] "
-            f"{row.get('text', '')[:1400]}"
+            f"{row.get('text', '')[:2000]}"
             for row in rows[:6]
         )
 
@@ -161,8 +161,19 @@ class ReasoningService:
         system_prompt = (
             f"You are InsuraMind, a {doc_type_name} intelligence assistant. "
             "Answer only from the evidence. If evidence is insufficient, say so. "
-            "Use plain language. Include citations like [p.4 c.2]. "
-            "Do not provide legal certainty; provide document-text-based guidance."
+            "Do not provide legal certainty; provide document-text-based guidance.\n\n"
+            "FORMATTING RULES (you MUST follow these):\n"
+            "- Use **markdown** for all answers.\n"
+            "- Start with a 1-2 sentence **direct answer** to the question.\n"
+            "- Then provide **structured details** using:\n"
+            "  - `## Key Finding` headings for major points\n"
+            "  - Bullet points for lists of conditions, exclusions, or terms\n"
+            "  - **Bold** for key terms, amounts, and dates\n"
+            "  - Inline citations like [p.4 c.2] after each factual claim\n"
+            "- If there are conditions or exceptions, list them under a `## Conditions & Exceptions` heading.\n"
+            "- If there are risk alerts, include a `## ⚠️ Risk Alerts` section at the end.\n"
+            "- End with a brief `## Sources` section listing the citation labels used.\n"
+            "- Be thorough — do NOT truncate or cut off your answer prematurely."
         )
         if regulatory:
             system_prompt += f"\n\nRegulatory context: {regulatory}"
@@ -187,7 +198,7 @@ class ReasoningService:
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.1,
-                max_output_tokens=900,
+                max_output_tokens=2048,
             ),
         )
         text = getattr(message, "text", None) or ""
@@ -265,7 +276,7 @@ class ReasoningService:
             contents=prompt,
             config=types.GenerateContentConfig(
                 temperature=0.2,
-                max_output_tokens=220,
+                max_output_tokens=512,
             ),
         )
         text = getattr(message, "text", None) or ""
@@ -292,22 +303,32 @@ class ReasoningService:
             )
         top = rows[:4]
         topic = topic_label(section_hint(question))
-        lines = [f"Based on the most relevant {doc_type_name.lower()} text I found about {topic}:"]
+        lines = [f"## Relevant {doc_type_name.title()} Text \u2014 {topic}\n"]
+        lines.append(f"Based on the most relevant {doc_type_name.lower()} text I found:\n")
         for row in top:
             cite = row.get("citationLabel") or f"page {row.get('pageNumber')}"
             snippet = row.get("text", "").strip().replace("\n", " ")
-            if len(snippet) > 360:
-                snippet = snippet[:360].rsplit(" ", 1)[0] + "..."
+            if len(snippet) > 800:
+                # Trim at sentence boundary
+                cut = snippet[:800]
+                last_period = cut.rfind(". ")
+                if last_period > 400:
+                    snippet = cut[: last_period + 1]
+                else:
+                    snippet = cut.rsplit(" ", 1)[0] + "..."
             heading = row.get("parentHeading") or row.get("heading")
             if heading:
-                lines.append(f"- {heading} — [{cite}] {snippet}")
+                lines.append(f"### {heading}")
+                lines.append(f"[{cite}] {snippet}\n")
             else:
-                lines.append(f"- [{cite}] {snippet}")
+                lines.append(f"- **[{cite}]** {snippet}\n")
         if risk_alerts:
-            lines.append("Risk alerts: " + "; ".join(risk_alerts[:3]))
+            lines.append("\n## ⚠️ Risk Alerts")
+            for alert in risk_alerts[:3]:
+                lines.append(f"- {alert}")
         lines.append(
-            "This is an evidence-grounded reading of the uploaded document, "
-            "not a final professional opinion."
+            "\n---\n*This is an evidence-grounded reading of the uploaded document, "
+            "not a final professional opinion.*"
         )
         return "\n".join(lines)
 

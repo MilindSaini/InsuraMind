@@ -10,6 +10,7 @@ from models.schemas import Chunk, ExtractedEntity, InternalIngestPayload
 
 if TYPE_CHECKING:
     from dtr.models import DTRConfig
+    from models.schemas import AggregatorResult
 
 
 @dataclass
@@ -35,12 +36,19 @@ class PipelineContext:
     chunks: list[Chunk] = field(default_factory=list)
     entities: list[ExtractedEntity] = field(default_factory=list)
 
+    # ── New: structured clause output + embeddings + aggregation ─────────────
+    structured_clauses: list[dict[str, Any]] = field(default_factory=list)
+    embeddings: list[list[float]] = field(default_factory=list)
+    aggregator_result: Optional["AggregatorResult"] = field(default=None, repr=False)
+
     # ── DTR config (loaded by ClassifierStage, consumed by all downstream) ──
     dtr_config: Optional["DTRConfig"] = field(default=None, repr=False)
 
     # ── Diagnostics ───────────────────────────────────────────────────────────
     stage_timings: dict[str, float] = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
+    llm_calls_skipped: int = 0
+    cache_hits: int = 0
 
     # ── Internal ──────────────────────────────────────────────────────────────
     _stage_start: float = field(default_factory=time.monotonic, repr=False)
@@ -52,12 +60,21 @@ class PipelineContext:
         self.stage_timings[name] = round(time.monotonic() - self._stage_start, 3)
 
     def to_ingest_payload(self) -> InternalIngestPayload:
+        # Build aggregation result dict for the backend
+        agg_dict = {}
+        if self.aggregator_result is not None:
+            agg_dict = self.aggregator_result.model_dump()
+
         return InternalIngestPayload(
             documentType=self.document_type,
             status="READY",
-            message=f"Processed {len(self.chunks)} chunks and {len(self.entities)} entities",
+            message=(
+                f"Processed {len(self.chunks)} chunks and {len(self.entities)} entities"
+                f" (LLM skipped: {self.llm_calls_skipped}, cache hits: {self.cache_hits})"
+            ),
             chunks=self.chunks,
             entities=self.entities,
+            aggregationResult=agg_dict,
         )
 
     @classmethod
@@ -69,3 +86,4 @@ class PipelineContext:
             file_name=event["fileName"],
             file_type=event.get("fileType", "application/pdf"),
         )
+

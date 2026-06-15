@@ -34,3 +34,5 @@ infra/minio-data/
 infra/postgres-data/
 infra/qdrant-data/
 infra/redis-data/
+
+testsprite_tests\tmp\config.json
